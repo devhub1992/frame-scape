@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Frame Scape: project overview</title>
+<meta name="description" content="Frame Scape is a browser FPS built from plain static files, developed in AI-assisted patch sessions.">
+<style>
+  :root{
+    --bg:#f3f1ec; --panel:#ffffff; --ink:#1b1f27; --muted:#5a6272; --line:#d5d1c7;
+    --accent:#0b6fa4; --accent-ink:#ffffff; --code:#ebe8e0;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0e1218; --panel:#161c26; --ink:#e6e9ef; --muted:#9aa4b5; --line:#2a3342;
+      --accent:#4fc3ff; --accent-ink:#06121c; --code:#1d2532;
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-padding-top:1rem}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:17px/1.6 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+  main{max-width:46rem;margin:0 auto;padding:3rem 1.25rem 4rem}
+  h1{font:700 2.6rem/1.1 Georgia,"Times New Roman",serif;margin:0 0 .5rem;letter-spacing:-.01em}
+  h2{font:700 1.35rem/1.25 Georgia,"Times New Roman",serif;margin:2.6rem 0 .6rem}
+  p{margin:.6rem 0;max-width:42rem}
+  .lede{font-size:1.15rem;color:var(--muted)}
+  .play{display:inline-block;margin:1.2rem 0 .4rem;padding:.7rem 1.4rem;border-radius:6px;
+    background:var(--accent);color:var(--accent-ink);font-weight:600;text-decoration:none}
+  .play:hover{filter:brightness(1.08)}
+  a{color:var(--accent)}
+  a:focus-visible,.play:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+  code,pre{font-family:Consolas,"Cascadia Mono",monospace;font-size:.92em;background:var(--code);border-radius:4px}
+  code{padding:.1em .35em}
+  pre{padding:.8rem 1rem;overflow-x:auto;margin:.8rem 0}
+  pre code{padding:0;background:none}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1rem 1.2rem;margin:1rem 0}
+  .scroll{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;min-width:30rem;font-size:.95rem}
+  th,td{text-align:left;padding:.45rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-weight:600;color:var(--muted)}
+  ul{padding-left:1.2rem;margin:.5rem 0}
+  li{margin:.25rem 0}
+  footer{margin-top:3rem;color:var(--muted);font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+  <h1>Frame Scape</h1>
+  <p class="lede">A first-person shooter inspired by Halo and Warframe that runs in a web browser from plain static files, and stays playable on very old hardware.</p>
+  <a class="play" href="frame-scape/index.html">Play the game</a>
+  <p>Needs a browser with WebGL. Mouse and keyboard work; Xbox controllers are supported.</p>
+
+  <h2>What this project is</h2>
+  <p>Frame Scape starts in a dark corridor, fights through a hangar and a canyon, and opens into a procedural wilderness with biomes, an ocean, a day and night cycle, harvesting, fishing and a giant kaiju. You collect credits, power and mod cards to upgrade your weapons, frame and two companions: a combat drone and a beast.</p>
+  <p>There is no build step and no server code. Textures are drawn on a canvas, sound is synthesized with WebAudio, and the only outside dependency is three.js r152.2 from a CDN.</p>
+
+  <h2>How it is developed</h2>
+  <p>The game is built in AI-assisted patch sessions. One text file, <a href="framescape.flat.txt"><code>framescape.flat.txt</code></a>, holds every requested feature, groups them into dependency-ordered chunks (CH-01 and up) sized for a single AI session, and records the history of what shipped. Each session finishes one chunk and returns the updated game plus the updated planner.</p>
+  <div class="box">
+    <strong>Status:</strong> v0.8.2 with the CH-06 container patch and the CH-25.5 drone-damage hotfix. Next planned chunk: CH-07, hangar bay expansion.
+  </div>
+
+  <h2>Where things are</h2>
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Path</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td><code>frame-scape/</code></td><td>The game. <code>index.html</code> is the entry point.</td></tr>
+      <tr><td><code>frame-scape/js/assets.js</code></td><td>All tunable numbers: palette, world, weapons, enemies, drops, mods.</td></tr>
+      <tr><td><code>framescape.flat.txt</code></td><td>Planner and AI handoff file. Start here when continuing development.</td></tr>
+      <tr><td><code>AGENTS.md</code></td><td>Short instructions for AI coding assistants.</td></tr>
+      <tr><td><code>docs/GAME_REFERENCE.md</code></td><td>Controls, mod and economy tables, performance notes, changelog.</td></tr>
+      <tr><td><code>README.md</code></td><td>Overview with the full file layout.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2>Run it locally</h2>
+  <p>Browsers block ES modules opened straight from disk, so serve the folder:</p>
+  <pre><code>python -m http.server 8000</code></pre>
+  <p>Then open <code>http://localhost:8000/</code>.</p>
+
+  <h2>Working on it with an AI</h2>
+  <ul>
+    <li>Point the AI at the repository and tell it to read <code>AGENTS.md</code> and the top of <code>framescape.flat.txt</code> first.</li>
+    <li>Ask it to "run plan.next". It will pick up the next chunk, change the code in <code>frame-scape/</code>, and update the planner file.</li>
+    <li>Gameplay numbers belong in <code>assets.js</code>; code changes carry <code>/* CH-NN.X */</code> markers.</li>
+  </ul>
+
+  <footer>Fan homage for personal and educational use. Halo and Warframe are trademarks of their respective owners; no assets, names or sounds from those games are included. Non-commercial.</footer>
+</main>
+</body>
+</html>

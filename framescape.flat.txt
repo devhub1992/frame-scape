@@ -1,0 +1,1310 @@
+# ============================================================================
+# FOR THE AI AGENT — this file IS the patch plan. START HERE:
+# 1. The unit of work is ONE chunk (§05-08): finish ALL its open features in one pass,
+#    inside the token budget (§03). Never start a chunk whose deps are not all done.
+# 2. Read order for a patch: §01 ai-protocol → the chunk's whole block → §03 project profile.
+# 3. New user requests: log them as feature lines (§02 user-protocol), route by
+#    ai.routing.rule — a request is never lost, only moved.
+# 4. The DELIVERABLE of every patch session is TWO artifacts: the NEXT ITERATION of the
+#    game zip (full folder re-zipped) + THIS file updated. Ship both or the bridge breaks.
+# 5. After the patch: flip fX statuses, update chunk status + plan.next + meta.last-patch,
+#    append a §12 worklog entry, and leave /* CH-NN.X */ markers in the code.
+# 6. Edit THIS file line-by-line (same flat conventions as configs.flat.txt) — it is the
+#    single source of truth between the user and every future AI session.
+# ============================================================================
+
+# ============================================================================
+#  framescape.flat.txt — FRAME SCAPE UPDATE PLANNER (FLAT BRIDGE FILE v1.1)
+#  converted from framescape_updates.html (update planner seed, fsu-v1) · 2026-10-28
+# ----------------------------------------------------------------------------
+#  PURPOSE
+#    the sole bridge between user requests and AI work: change requests line up
+#    here as feature lines, grouped into dependency-ordered, token-budgeted
+#    chunks (CH-01 … CH-17) that a fresh AI session executes ONE per patch
+# ----------------------------------------------------------------------------
+#  FORMAT (same conventions as configs.flat.txt)
+#    key = value            one fact per line · no nesting · no indentation
+#    group.key = value      fixed groupings (ch-01.files, plan.next)
+#    group.id.attr = value  enumerated instances only (ch-03.f1.text, worklog.1.date)
+#    # banners mark sections; state lives on the line, never in comments
+# ----------------------------------------------------------------------------
+#  SECTION INDEX
+#    00 meta · 01 ai-protocol · 02 user-protocol · 03 project-profile · 04 phases
+#    05 phase-1-foundations (ch01-03) · 06 phase-2-companions (ch04-05)
+#    07 phase-3-world (ch06-10 · ch36) · 08 phase-4-pause-menu-mod-ui (ch11-17)
+#    08B phase-5-arsenal-movement (ch18-20) · 08C phase-6-open-world-flight (ch21-24)
+#    08D phase-7-combat-systems (ch25-29 · ch37-38) · 08E phase-8-enemy-companion-ai (ch30-31 · ch39 · ch41)
+#    08F phase-9-arsenal-expansion (ch32-35) · 08G phase-10-hud-presentation (ch40)
+#    08H phase-11-beauty-presentation (ch42-43)
+#    09 inbox · 10 parked · 11 shipped-history · 12 worklog (append-only)
+# ----------------------------------------------------------------------------
+#  EDITING RULES
+#    edit one line at a time · never re-indent anything (there is none)
+#    keep keys stable — done-marking and worklog are line-addressed by key
+#    feature ids (CH-03.1 …) are permanent — never renumber, only re-status
+#    register, never remember — every request (even mid-run), every done item and every
+#    projected task becomes a LINE in this file; nothing lives only in chat or memory
+#    append-only: §12 worklog grows; §10-11 are frozen; inbox lines move, never vanish
+# ============================================================================
+
+# ══ 00. META ══════════════════════════════════════════════════════════════════
+meta.title = Frame Scape — Update Planner Flat File (bridge: user requests → AI patch chunks)
+meta.version = FLAT v2.7
+meta.revisions = v1.1 — 2026-10-28: added ai.deliverable (every patch ships the next game-zip iteration + this file), ai.interrupt.rule (mid-run user requests registered immediately), ai.projection.rule + ai.new-chunk.rule (projected tasks split into logical chunk blocks) · v1.2 — 2026-10-28: routing session, 8 user requests registered (ch-04.f4 freeze ray · CH-18 flamethrower · CH-19 orbital strike · CH-20 double-jump feel pass · CH-21 biome expanse · CH-22 third-person · CH-23 flight · CH-24 minecraft regions) · new phase blocks §08B (phase 5, v0.11.0) + §08C (phase 6, v0.12.0) · two keyword-heuristic overrides documented in worklog.5 · v1.3 — 2026-10-28: combat routing session (plan-only, user-confirmed): 22 requests registered as CH-25…35 (37 feature lines) · new phase blocks §08D (phase 7 Combat systems, v0.13.0) + §08E (phase 8 Enemy & companion AI, v0.14.0) + §08F (phase 9 Arsenal expansion, v0.15.0) · CH-25 user-promoted to run after CH-05 (meta.plan.then) · REAL armor layer supersedes the CH-04 no-armor decision · statuses gate all new weapons · crit reference image pending (worklog.8) — RECEIVED in session #3, folded into CH-28.1 · v1.4 — 2026-10-28: routing session #3 (plan-only): 10 further user requests registered as CH-36…39 (13 feature lines) — extract loading screen + home base → CH-36 (phase 3) · beam/contagion mods (guided ordinance · combustion beam · shivering contagion) → CH-37 + player armor coefficient · quick thinking · blink-dash augment → CH-38 (phase 7) · companion bond mods (duplex · contagious) → CH-39 (phase 8) · unified armor→EHP curve (base × (1 + armor/300)) written into ch-25.f3 · zip recon: blink dash (R2 special, dist 7/max 20) + player energy pool (max 100) + rig torso/head anchors all EXIST; no armor stat anywhere yet (visual-only namesakes) → player armor stat net-new (CH-38.1) · v1.5 — 2026-10-28: mini routing (plan-only) — universal crate-break threshold (any damage type up to the rocket launcher's 2000 damage mark) → ch-06.f4 (worklog.10); denominator 109 → 110 · v1.6 — 2026-10-28: CH-25 SHIPPED (patch session, code): damage type core live — typed damage + crit/status stats + real enemy armor + the shared applyDamage entry point · phase 7 opened (1/7) · denominator 110 unchanged (no new feature lines) · v1.7 — 2026-10-28: CH-06 SHIPPED (patch session, code): more breakable containers — barrels + chests join the crates via ONE assets.world.containers config (per-zone mix absorbs the old per-zone crates lists byte-identically) + the f4 UNIVERSAL BREAK THRESHOLD live (any damage type, no gate; mark moved from a world.js constant into assets, keyed to the RL-4 shell) · phase 3 opened (1/6) · denominator 110 unchanged (no new feature lines) · v1.8 — 2026-10-28: CH-25.5 REGRESSION HOTFIX SHIPPED (patch session, code): user report "drone weapons appear to do no damage" → typedHit() dmg-fallback (drone defs keep the legacy dmg key as the ONE moddable scalar — dr-out mod / XMB rows / pod untouched) + R2 missiles/pbolt scalars moved onto their defs (were hard-coded at the call sites — same bug class, also all-zero) · denominator 110 → 111 (ch-25.f5) · v1.9 — 2026-10-28: HUD/world routing session (plan-only): 8 user requests registered as 8 feature lines — duplicate-card banner (new cards only) · enemy nameplates above the health-bar status row · loot-log position · controller-badge removal · reticle-notification footnote grouped into NEW chunk CH-40 (new §08G phase 10 HUD & presentation, v0.16.0) · city extraction-post removal → ch-08.f3 · loose companion reticle-follow → ch-31.f4 · companion/weapon color customization → ch-13.f3 (+textures.js) · keyword overrides documented in worklog.15 · denominator 111 → 119 · v2.0 — 2026-10-28: mini routing (plan-only) — AUTO RELOAD ON EMPTY (settings toggle, default ON; when OFF the center "press R to reload" prompt is replaced by a weapon-icon flash on the right) → ch-40.f6 widening the CH-40 declutter pass (files += weapon.js, est.total 27.9 → 33.4 green; overrides in worklog.16) · denominator 119 → 120 · v2.1 — 2026-10-28: mini routing (plan-only) — RETICLE SHAPE + AGGRO COLOR STATES (X → dot; white default · green friendly/item · orange not-aggro'd · red aggro'd enemy; pure read-side, no AI change) → ch-40.f7 (2-2 keyword tie vs CH-31 overridden for scope, worklog.17) · ch-40.keywords += crosshair, reticle color · est.total 33.4 → 34.6 green · denominator 120 → 121 · v2.2 — 2026-10-28: enemy-AI routing session (plan-only): 6 user requests registered as NEW chunk CH-41 enemy combat maneuvering & loadouts (active cover · shield smarts · open-field strafe · take-a-knee precision · per-zone enemy weapon tables · dash gated to elites + teleport fix) — §08E grows (ch30-31 · ch39 · ch41), phase.8 updated · keyword overrides in worklog.18 ("dash" CH-38 · "teleport" CH-12 · "weapon" CH-13/15/18/30 · "enemy" CH-31 — all scope) · est.total 35.1 green · denominator 121 → 127 · v2.3 — 2026-10-28: mini routing (plan-only) — 2 companion requests → CH-31: COMPANION-DAMAGE HP BARS (visible even through walls while a companion is damaging the target) → ch-31.f5 (strict CH-28 "hp"+"bar" win overridden for scope — numbers ≠ bar visibility; CH-31 has the f2 blink prior art + files) · SENTINEL WEAPON PUNCH-THROUGH (innate 2 m, typed pipeline, clones inherit) → ch-31.f6 · est.total 34.1 → 36.5 green · denominator 127 → 129 · v2.4 — 2026-10-28: mini routing (plan-only) — PAUSE-MENU REDESIGN KEEPS THE ORIGINAL XMB (user: "when it gets to redesigning the pause menu, keep original copy of xmb as a menu item") → ch-11.f4 ORIGINAL XMB MENU ITEM (strict 2-hit winner "pause"+"menu", no override; "xmb" dead-hits done CH-04) · ch-11.f3 flag amended to interim-until-f4 · CH-17.1 legacy-XMB retirement struck (ch-17.note + f1.text amendment) · ch-11.keywords += xmb, menu item · est.total 24.9 → 26.1 green · denominator 129 → 130 · v2.5 — 2026-10-28: image-reference routing session (plan-only): 5 beauty-goal reference images scanned detail-by-detail and routed — AIM DOWN SIGHTS THIRD-PERSON → ch-22.f3 REFERENCE SPEC (CH-22.f1 already reserved "ADS adaptation" unspecced; image pins over-shoulder offset + FOV zoom/blur + distance/magnification readouts + aim-target HP bar + typed damage breakdown) · SLIM CHARACTER → NEW chunk CH-42 in NEW phase block §08H phase 11 Beauty & presentation (f1 slim rig proportions · f2 material finish; strict "character"/"frame" hits were all menu-scope — CH-11 bust display, CH-13/15 equipment — overridden → ai.new-chunk.rule, CH-41 precedent) · MODERN NARROW HUD → ch-40.f8 ("hud" 1-1 tie vs CH-28 overridden for scope — CH-40 is the dedicated HUD presentation chunk) · INTRICATE LOGIN SCREEN → NEW chunk CH-43 (f1 title/login screen · f2 boot flow; zero keyword hits — "screen" only inside CH-36 "loading screen", scope mismatch → ai.new-chunk.rule) · SPECIAL PAUSE MENU → ch-11.f5 reference styling (strict "pause"+"menu" win) · overrides + detail extraction in worklog.21 · denominator 130 → 137 · v2.6 — 2026-10-28: mini routing (plan-only) — CHARACTER NATURALNESS BAR (user: "when the 3d character design comes out, i want to make sure that surfaces and animations are as natural as they can be") → CH-42 grows: ch-42.f3 SURFACE NATURALNESS (matte/gloss balance, roughness breakup, ambient response, blended accents — the acceptance bar for f1+f2 at execution time) + ch-42.f4 ANIMATION NATURALNESS (blended start/stop, weight-shifted idle, eased transitions, no foot-sliding, ADS tracking; amends f1's "no new animations" — same skeleton, no new bones) · no literal keyword hit on any open chunk — routed by the user's own referent (the chunk's deliverable) + scope ownership, worklog.5 precedent (worklog.22) · ch-42.keywords += surfaces, character animation, natural · est.total 15.4 → 17.8 green · denominator 137 → 139 · v2.7 — 2026-10-28: image-reference routing (plan-only) — WARFRAME VITRUVIAN PALETTE MANDATED FOR ALL OPAQUE MENUS (user: "this is warframe vitruvian, i want to use this exact color scheme/design for any opaque menus in game, scan and notate carefully") → ch-11.f6 VITRUVIAN OPAQUE-MENU THEME: shared design-token set scanned + PIL color-sampled from the reference (midnight-indigo bg #1D1B2B / plum cast #252230 / vignette #12101D · olive-gold wash #39302E · antique-gold line-work #908468, crisp sand-gold #A69974 · cream hairlines #D6CBB2 · node glow #EBDFB5; ornament grammar: 1px hairline rules · corner flourishes · branching node trees · cross/arrow markers · vertical node rail · pointed-arch outlines · script strips) · binds the CH-11 shell + all in-shell submenus + CH-43.1 title/login (cross-ref ch-43.note, ch-17.note precedent); f4 ORIGINAL XMB exempt; HUD excluded — ASSUMPTION flagged · ch-11.files += textures.js, keywords += vitruvian, color scheme, theme, opaque menu · est.total 27.3 → 31.4 green · denominator 139 → 140
+meta.supersedes = framescape_updates.html features.log workflow (fsu-v1) — the HTML planner stays usable as an offline viewer, but THIS file is the source of truth from 2026-10-28 on
+meta.created = 2026-10-28 — full transcription of the planner seed: INBOX + CH-01…CH-17 + PARK + shipped history H060/H070/H080 + 16-file size table + 40k sweep budget
+meta.game.version = v0.8.2 + CH-06 patch + CH-25.5 hotfix applied (frame-scape-v0.8.2-ch25f5-patched.zip, 2026-10-28) — phase 2 COMPLETE (Companions) · phase 3 IN PROGRESS (1/6: CH-06 done) · phase 7 IN PROGRESS (1/7: CH-25 done incl. the f5 hotfix) — no version bump (phase.bump-rule: v0.9.0 lands when phase 3 closes)
+meta.next.version.bump = v0.8.2 — lands when phase 2 completes (CH-05 done) · v0.9.0 at phase 3 · v0.10.0 at CH-17 · v0.11.0 at phase 5 · v0.12.0 at phase 6 · v0.13.0 at phase 7 · v0.14.0 at phase 8 · v0.15.0 at phase 9 · v0.16.0 at phase 10 · v0.17.0 at phase 11
+meta.last-patch = CH-25.5 · shipped 2026-10-28 · REGRESSION HOTFIX "drone weapons appear to do no damage": root cause — the CH-25.4 typed retrofit built every drone hit through weapon.js typedHit(), which read the scalar from def.damage, while the five drone defs keep their moddable scalar on the LEGACY `dmg` key (what the dr-out table mod field 'dmg', the XMB drone rows and the pod's dmg: W.dmg all read) → typedHit built {type: 0×fraction} maps and EVERY drone weapon landed zero: LASER LANCE / MARKSMAN / MINIGUN direct, HOMING POD via its hit payload into splash()'s typed branch (typed takes precedence over the raw dmg — props/self still felt the pod, enemies did not), FREEZE RAY hp chew (its shield sap stayed alive — % of max never entered the typed path, which is why the beam looked half-working) · FIX (3 files): typedHit() now falls back `total ?? def.damage ?? def.dmg ?? 0` (drone defs keep dmg as the ONE moddable key — mods/HUD/pod untouched; R10 dr-out doubles the scalar, harness-pinned); the same class-sweep caught TWO more silent victims — R2 HOMING MISSILES + R2 PLASMA BOLT carried types splits whose scalars were hard-coded at the call sites (90/60) and invisible to typedHit → scalars moved ONTO the defs (damage: 90 / damage: 60, tunables-in-assets rule) and useMissiles/usePBolt read def.damage (behavior byte-identical: same 90/60) · verified by a 111-check Node harness (scripts/test_ch25f5.mjs — class sweep over ALL 19 types-bearing defs, negative control, dr-out rank flow, exact armor-mitigation oracle) + a 31-check headless-Chromium smoke (scripts/smoke_ch25f5.cjs — REAL module-instance typedHit + live droneShoot/makeDroneMissile/splash/updateDroneFreeze/usePBolt/useMissiles vs a real enemy, all deltas EXACT to 1e-6, zero page errors) · CH-06 harness regression-checked 155/155 · README hotfix note added
+meta.plan.next = CH-07 — first non-done, non-blocked chunk in GLOBAL id order (deps none): Hangar bay expansion (extra bays, gantry/catwalk extension, cover + containers, zone-culled lights, colliders/ramp/exit fixes, hangar-level spawns) — phase 3 (World, v0.9.0) continues; est.total 28.9k GREEN at §03 sizes (§03 sizes still govern; worklog.11/12/13 re-measures apply only when an est lands yellow) · after CH-07 the id order continues (CH-08 …) unless the user promotes further (user.sort)
+meta.plan.then = (consumed 2026-10-28) CH-25 ran its promotion window — it IS plan.next now; this key stays as the promotion record: CH-25 was user-promoted (user.sort, 2026-10-28) to run right after CH-05 and before phase 3 — RAN AND SHIPPED 2026-10-28 (worklog.12), promotion window closed, id order resumed
+meta.plan.progress = 26/140 active features done (CH-01: 3 · CH-02: 3 · CH-03: 4 · CH-04: 4 · CH-05: 3 · CH-06: 4 · CH-25: 5) · phase 1 done (v0.8.1) · phase 2 done (v0.8.2 landed 2026-10-28) · phase 3 IN PROGRESS (1/6: CH-06 shipped 2026-10-28) · phase 7 IN PROGRESS (1/7: CH-25 shipped 2026-10-28, f5 hotfix 2026-10-28) · phases 4-6, 8-10 not started · 140 = all chNN.fX lines in §05-08 + §08B-08H (incl. ch-36…39 worklog.9 + ch-06.4 worklog.10 + ch-25.5 worklog.14 + ch-08.3 · ch-13.3 · ch-31.4-6 worklog.19 · ch-41.f1-6 worklog.18 · ch-40.f1-8 worklog.15-17+21 · ch-11.f4-6 worklog.20-23 · ch-22.f3 worklog.21 · ch-42.f1-4 worklog.21-22 · ch-43.f1-2 worklog.21)
+meta.purpose = users line up change requests here; the file chunks them into token-budgeted, dependency-ordered patches a fresh AI session executes one at a time, then records what shipped
+
+# ══ 01. AI PROTOCOL — HOW EVERY PATCH SESSION RUNS ════════════════════════════
+# the chunk section is the contract · these keys define the execution + bookkeeping rules
+ai.unit-of-work = ONE chunk per patch session — open its §05-08 block, finish ALL of its open (status = todo) features in one pass, then stop
+ai.order = chunks run in id order within a phase · a chunk whose chNN.deps are not ALL status = done is BLOCKED — never start it
+ai.budget.k = 40
+ai.budget.zone = green ≤ 40k · yellow ≤ 50k (1.25×) — split or trim first if open user features push it further · red > 50k — must split
+ai.split.rule = over-budget chunk → duplicate it as chNNb (title "… (part 2)", deps = chNN, move half the open features in, est.out.k halved) and run as two sweeps · never renumber existing ids
+ai.read.rule = grep chNN.files first, read only the relevant functions — read cost is est.read.k (formula in §03); do not whole-file dump 59k world.js into context when a section will do
+ai.output.rule = unified diffs or changed functions only — never re-emit whole files · touch no files outside chNN.files unless unavoidable (say why)
+ai.saves.rule = keep localStorage saves backwards compatible (ac-meta-v2 / ac-save-v1) · migrations idempotent, no lost power, no lost currency
+ai.scope.rule = the chNN.fX.text lines are the contract — implement ALL of each one, no silent scope cuts · ASSUMPTION notes inside a text must be confirmed or replaced with a stated decision before coding
+ai.stop.rule = running short on budget → stop at a clean boundary, log remaining work as new chNN.fX lines (status = todo) and say what is left
+ai.markers.rule = leave a /* CH-NN.X */ comment at each implemented feature (existing pattern: see CH-01.x / CH-02.x markers in the patched zip) — the next session verifies from markers, not re-reads
+ai.deliverable = every patch ships TWO artifacts — (1) the NEXT ITERATION of the full game zip: re-zip the whole folder (index.html + css/ + js/ + README.md) as frame-scape-v<current>-ch<NN>-patched.zip (version part bumps only when a phase version lands) · (2) THIS file updated per ai.finish.file + ai.finish.worklog — ship both, the bridge breaks otherwise
+ai.interrupt.rule = requests the user types MID-RUN are registered immediately with a fresh permanent id (§09 inbox line or routed chNN.fX) — never dropped, never held in memory — but they do NOT widen the running sweep; they schedule through the normal plan rules once the current chunk closes
+ai.projection.rule = follow-up work discovered while patching (placement passes, migrations, balance, fixes, polish) is REGISTERED, not remembered — new chNN.fX lines in the current chunk, or a projected new chunk per ai.new-chunk.rule · every §12 worklog follow-up must point at a line that exists in this file
+ai.new-chunk.rule = a request or projection that matches no open chunk becomes a NEW chunk block: next free CH-NN id inside the matching phase section (new phase block if it starts one), carrying title · size · files · deps · keywords · est keys — then it competes for plan.next in id order
+ai.finish.test = end the reply with a 5-line manual test checklist for the patch
+ai.finish.line = then one line exactly like: done|CH-03.1,CH-03.2 (remove ids you did not finish)
+ai.finish.file = then update THIS file — chNN.fX.status = done for finished ids · chNN.status = done when all its fX are done · plan.next recomputed · meta.last-patch + meta.game.version updated
+ai.finish.worklog = then append a §12 worklog entry (next worklog.N): date · chunk · summary · files touched · code markers left · follow-ups
+ai.routing.rule = a new request is keyword-matched against every open chunk chNN.keywords (case-insensitive substring, most hits wins, first in id order breaks ties) → routed there · no hit → stays in §09 inbox · done chunks and §10 parked are never routed to
+ai.prompt.recipe.1 = PROJECT: Frame Scape (vanilla ES modules + three.js r152, no build step, i3/HD3000 perf budget; all tunables live in js/assets.js)
+ai.prompt.recipe.2 = TASK chNN: chNN.title
+ai.prompt.recipe.3 = RULES: ai.read.rule · ai.output.rule · ai.saves.rule · ai.scope.rule · ai.stop.rule (this section)
+ai.prompt.recipe.4 = FILES: chNN.files
+ai.prompt.recipe.5 = DEPENDS ON (already shipped): chNN.deps
+ai.prompt.recipe.6 = FEATURES: the open chNN.fX lines as "N. [CH-NN.X] text"
+ai.prompt.recipe.7 = FINISH BY: a 5-line manual test checklist, then one line exactly like done|CH-03.1,CH-03.2 (remove ids not finished)
+ai.prompt.recipe.note = paste recipe + the chunk whole §05-08 block into a fresh AI session when running the patch — that keeps the session inside one sweep budget
+
+# ══ 02. USER PROTOCOL — HOW TO DRIVE THE PLAN ═════════════════════════════════
+user.add = drop change requests in chat any time and tell the AI to log them — each becomes one chNN.fX line (or §09 inbox line if unrouted) with a fresh permanent id
+user.midrun = typing requests while a patch is running is safe — the AI registers each one immediately with a permanent id (ai.interrupt.rule) without derailing the sweep · ask for the new ids in the patch reply to confirm nothing was dropped
+user.sort = the AI routes new lines by ai.routing.rule · override it by moving a line into any chNN block yourself (keep the id, update the id prefix)
+user.run-next = say "run plan.next" — the AI executes that one chunk within budget, updates this file and appends §12 worklog
+user.track = progress = count fX.status done vs todo per chunk · plan.next = first non-done, non-blocked chunk in id order · §12 worklog is the patch history
+user.park = ideas you are NOT committing to → §10 parked · they are never auto-scheduled
+user.budget = default sweep 40k tokens (ai.budget.k) — raise it only if you accept coarser, riskier patches
+user.versions = a phase version (§04) lands when its last chunk is done · README.md "What's new" is updated at version bumps
+
+# ══ 03. PROJECT PROFILE + ESTIMATE TABLE ══════════════════════════════════════
+proj.name = Frame Scape
+proj.genre = Halo/Warframe-inspired corridor-and-wilds browser FPS
+proj.stack = vanilla ES modules + three.js r152.2 (jsDelivr pinned) · no build step · static host (Neocities)
+proj.perf = i3-2350M / Intel HD 3000 budget — WebGL1 fallback, pixel ratio 1, ~160-200 draw calls, auto watchdog ladder down to PSP mode · keep lights zone-culled
+proj.tunables = all tunables live in js/assets.js (palette · world · weapons · drops · companions · specials · economy · mods · controls · quality)
+proj.saves = localStorage ac-meta-v3 (currencies + mod cards {id, copies, rank}) · ac-save-v1 (run state) — v2/v1 banks migrate on load, backwards compatible forever, migrations idempotent
+proj.console = window.AC → { game, assets } · AC.game.mods.grant / wipeMeta / sellCard / scrapCard / sellDuplicates / scrapDuplicates · AC.game.drops.sim(10000) loot verifier
+proj.readme = README.md carries the version history ("What's new" per version) — update at every version bump
+proj.host-note = ES modules need http locally (python -m http.server 8000); double-click only works on the static host
+fs.index.html = 7010
+fs.input.js = 8588
+fs.mods.js = 17440
+fs.audio.js = 12728
+fs.ecology.js = 14544
+fs.player.js = 15799
+fs.companions.js = 19510
+fs.hud.css = 21069
+fs.textures.js = 22099
+fs.enemy.js = 27767
+fs.weapon.js = 32361
+fs.main.js = 31851
+fs.hud.js = 52522
+fs.assets.js = 44406
+fs.specials.js = 49986
+fs.world.js = 59164
+fs.note = byte sizes re-measured at v0.8.1 (CH-03 shipped 2026-10-28 — mods/hud/specials/assets/input/ecology/weapon all grew) · they drive est.read.k · re-measure again only when an estimate lands in the yellow zone
+est.formula = est.read.k = sum(fs of chNN.files) / 7600 · est.out.k = chunk out budget + 1.2k per OPEN user-requested feature · est.total.k = read + out — recompute at patch time
+budget.k = 40
+
+# ══ 04. PHASES — VERSION TARGETS ══════════════════════════════════════════════
+phase.1.name = Foundations
+phase.1.version = v0.8.1
+phase.1.chunks = CH-01, CH-02, CH-03
+phase.1.status = done — v0.8.1 landed 2026-10-28 (CH-01 + CH-02 + CH-03 all done)
+phase.2.name = Companions
+phase.2.version = v0.8.2
+phase.2.chunks = CH-04, CH-05
+phase.2.status = done — v0.8.2 landed 2026-10-28 (CH-04 + CH-05 all done)
+phase.3.name = World
+phase.3.version = v0.9.0
+phase.3.chunks = CH-06, CH-07, CH-08, CH-09, CH-10, CH-36
+phase.3.status = IN PROGRESS (1/6: CH-06 shipped 2026-10-28 — v0.9.0 lands when the phase closes) · CH-36 added 2026-10-28 (extract loading screen + home base) — new chunks compete for plan.next in GLOBAL id order, so CH-36 runs after CH-35 unless user-promoted (user.sort)
+phase.4.name = Pause menu & mod UI
+phase.4.version = v0.10.0
+phase.4.chunks = CH-11, CH-12, CH-13, CH-14, CH-15, CH-16, CH-17
+phase.4.status = not started
+phase.bump-rule = the phase.N.version lands when that phase last chunk is done · CH-17 additionally retires the legacy XMB and closes the pause-menu rework
+phase.5.name = Arsenal & movement feel
+phase.5.version = v0.11.0
+phase.5.chunks = CH-18, CH-19, CH-20
+phase.5.status = not started
+phase.6.name = Open world & flight
+phase.6.version = v0.12.0
+phase.6.chunks = CH-21, CH-22, CH-23, CH-24
+phase.6.status = not started — born from the 2026-10-28 routing session (user "eventually" items grouped so v0.9.0 is not gated by them)
+phase.7.name = Combat systems
+phase.7.version = v0.13.0
+phase.7.chunks = CH-25, CH-26, CH-27, CH-28, CH-29, CH-37, CH-38
+phase.7.status = not started — born from the 2026-10-28 combat routing session · CH-25 user-promoted to run right after CH-05 (meta.plan.then) · CH-37 (beam/contagion mods, deps CH-25+CH-26) + CH-38 (player armor coefficient · quick thinking · blink-dash augment, deps CH-25) added 2026-10-28 (worklog.9)
+phase.8.name = Enemy & companion AI
+phase.8.version = v0.14.0
+phase.8.chunks = CH-30, CH-31, CH-39, CH-41
+phase.8.status = not started — born from the 2026-10-28 combat routing session · CH-39 (companion bond mods: duplex · contagious, deps CH-25+CH-26) added 2026-10-28 (worklog.9) · CH-41 (enemy combat maneuvering & loadouts, deps none) added 2026-10-28 (worklog.18)
+phase.9.name = Arsenal expansion
+phase.9.version = v0.15.0
+phase.9.chunks = CH-32, CH-33, CH-34, CH-35
+phase.9.status = not started — GATED by the user: statuses (CH-26) land before ANY new weapon; every chunk here deps CH-25 + CH-26
+phase.10.name = HUD & presentation
+phase.10.version = v0.16.0
+phase.10.chunks = CH-40
+phase.10.status = not started — born from the 2026-10-28 HUD/world routing session (worklog.15): in-game HUD declutter requests grouped as one presentation pass (NOT phase 4 — menu scope vs game-window scope) · competes for plan.next in GLOBAL id order, runs after CH-39 unless user-promoted (user.sort)
+phase.11.name = Beauty & presentation
+phase.11.version = v0.17.0
+phase.11.chunks = CH-42, CH-43
+phase.11.status = not started — born from the 2026-10-28 image-reference routing session (worklog.21): the user's five beauty-goal reference images routed — 3 into existing chunks (CH-22.f3 · CH-40.f8 · CH-11.f5), 2 new chunks here (slim player character + intricate login/title screen — no open-chunk owner) · competes for plan.next in GLOBAL id order, runs after CH-41 unless user-promoted (user.sort)
+
+# ══ 05. PHASE 1 — FOUNDATIONS (v0.8.1) ════════════════════════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# order: ch-01, ch-02, ch-03
+ch-01.id = CH-01
+ch-01.phase = 1 · Foundations (v0.8.1)
+ch-01.title = Controller X harvest + confirm dialogs
+ch-01.size = S
+ch-01.status = done
+ch-01.deps = none
+ch-01.files = input.js, assets.js, ecology.js, weapon.js, hud.js
+ch-01.keywords = controller, button, confirm, harvest, prompt
+ch-01.est.read.k = 17.5
+ch-01.est.out.k = 5
+ch-01.est.total.k = 22.5
+ch-01.f1.id = CH-01.1
+ch-01.f1.status = done
+ch-01.f1.text = Controller X (btn 2) = context interact: when a harvest node, fish zone or locker is in reach X interacts, otherwise X still reloads. Consume the press so both never fire; show an "X HARVEST" prompt. Keyboard X and D-pad ↓ stay as they are.
+ch-01.f2.id = CH-01.2
+ch-01.f2.status = done
+ch-01.f2.text = Generic confirm dialog in hud.js (A/Enter confirm, B/Esc cancel, default focus = Cancel, shows what is lost and the CR/PW refund or sale value).
+ch-01.f3.id = CH-01.3
+ch-01.f3.status = done
+ch-01.f3.text = Wire the confirm dialog into mod scrap, weapon sell and salvage/material sell.
+ch-02.id = CH-02
+ch-02.phase = 1 · Foundations (v0.8.1)
+ch-02.title = Enemy item-drop pool re-weight
+ch-02.size = S
+ch-02.status = done
+ch-02.deps = none
+ch-02.files = assets.js, specials.js, enemy.js
+ch-02.keywords = drop, pool, chart, loot
+ch-02.est.read.k = 15.2
+ch-02.est.out.k = 4
+ch-02.est.total.k = 19.2
+ch-02.f1.id = CH-02.1
+ch-02.f1.status = done
+ch-02.f1.text = New drops.itemPool weights: pistol+shotgun 80 · rifle 5 · frame 5 · beast/sentinel 5 · launcher 5. Applies to the mod-chip / weapon-copy rolls from kills, crates, elites and kaiju (ASSUMPTION: the ammo/credit/health table is unchanged).
+ch-02.f2.id = CH-02.2
+ch-02.f2.status = done
+ch-02.f2.text = Tag every mod node and weapon with a `pool` category (pistol, shotgun, rifle, frame, companion, launcher) and roll through one weighted function; normalise if weights do not sum to 100.
+ch-02.f3.id = CH-02.3
+ch-02.f3.status = done
+ch-02.f3.text = Console helper AC.game.drops.sim(10000) prints the resulting distribution for verification.
+ch-03.id = CH-03
+ch-03.phase = 1 · Foundations (v0.8.1)
+ch-03.title = Mod card inventory + duplicate sell/scrap
+ch-03.size = L
+ch-03.status = done
+ch-03.deps = CH-01, CH-02
+ch-03.files = mods.js, assets.js, hud.js, specials.js, main.js
+ch-03.keywords = mod, card, duplicate, sell, scrap, inventory
+ch-03.est.read.k = 22.2
+ch-03.est.out.k = 12
+ch-03.est.total.k = 34.2
+ch-03.note = SHIPPED 2026-10-28 — phase 1 closed, v0.8.1 landed · migration verified twice (Node harness, 36 checks) · stated decisions recorded in worklog.4
+ch-03.f1.id = CH-03.1
+ch-03.f1.status = done
+ch-03.f1.text = Replace buy-a-rank nodes with a card inventory: {id, copies, rank} per mod. Chips, crate drops, elite drops and kaiju copies add cards instead of free ranks.
+ch-03.f2.id = CH-03.2
+ch-03.f2.status = done
+ch-03.f2.text = Save migration ac-meta-v2 → v3: existing ranks become one owned card each at the same rank; no refunds, no lost power.
+ch-03.f3.id = CH-03.3
+ch-03.f3.status = done
+ch-03.f3.text = API: sellCard, scrapCard (existing 60% refund), sellDuplicates(id) and scrapDuplicates(id) = all copies but one; global variants; counters total cards + duplicates.
+ch-03.f4.id = CH-03.4
+ch-03.f4.status = done
+ch-03.f4.text = Interim XMB hooks for sell/scrap duplicates, all behind the CH-01 confirm dialog (final buttons land in the mod bench, CH-16).
+
+# ══ 06. PHASE 2 — COMPANIONS (v0.8.2) ═════════════════════════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# order: ch-04, ch-05
+ch-04.id = CH-04
+ch-04.phase = 2 · Companions (v0.8.2)
+ch-04.title = Companion mod sets (sentinel / beast)
+ch-04.size = M
+ch-04.status = done
+ch-04.deps = CH-03
+ch-04.files = assets.js, mods.js, companions.js, hud.js, audio.js, enemy.js
+ch-04.keywords = companion, sentinel, beast, drone, xmb, column
+ch-04.est.read.k = 22.9
+ch-04.est.out.k = 9
+ch-04.est.total.k = 31.9
+ch-04.note = SHIPPED 2026-10-28 — stated decisions recorded in worklog.6 · sr-cyc node bug caught + fixed by the harness before ship · HOTFIXED same day (worklog.7, ch04b zip): blocked-storage XMB crash
+ch-04.f1.id = CH-04.1
+ch-04.f1.status = done
+ch-04.f1.text = New mod columns "MOD · COMPANION" and "MOD · COMPANION WEAPON" in the XMB; every node tagged type sentinel or beast.
+ch-04.f2.id = CH-04.2
+ch-04.f2.status = done
+ch-04.f2.text = Companion set: sentinel (drone hull/shields/regen/radar…) and beast (claws/hull/shields…) moved out of MOD·HEAVY. Companion weapon set: sentinel weapon-table mods and beast bite/claw mods.
+ch-04.f3.id = CH-04.3
+ch-04.f3.status = done
+ch-04.f3.text = MOD·HEAVY keeps launcher mods only; saved ranks of moved nodes migrate by id. companions.js keeps reading mods through the same paths API (no new combat logic).
+ch-04.f4.id = CH-04.4
+ch-04.f4.status = done
+ch-04.f4.text = New sentinel weapon FREEZE RAY (user 2026-10-28): continuous beam that saps enemy defenses (shields first, then armor — stacking defense-down debuff); near-silent: no sound or a very low whisper siphon loop (audio.js); feeds on RIFLE ammo. Drone weapon-table entry + beam behavior in companions.js, debuff hooks in enemy.js. ASSUMPTION: defense-sap = % shield/armor reduction per second while beamed, decaying after — confirm exact curve before coding.
+ch-05.id = CH-05
+ch-05.phase = 2 · Companions (v0.8.2)
+ch-05.title = Scavenge mod + pet-opened lockers
+ch-05.size = L
+ch-05.status = done
+ch-05.deps = CH-04
+ch-05.files = world.js, companions.js, specials.js, assets.js, textures.js, hud.js, mods.js
+ch-05.keywords = locker, scavenge, pet, elite, beast, loot
+ch-05.est.read.k = 34.9
+ch-05.est.out.k = 10
+ch-05.est.total.k = 44.9
+ch-05.note = SHIPPED 2026-10-28 — phase 2 closed, v0.8.2 landed · verified by a 50-check Node harness (scripts/test_ch05.mjs, real mods.js+assets.js) + a headless-Chromium boot/drive smoke test (real THREE build: 8 lockers, designation, channel→open, respawn armed 109 s, zero page errors) · STATED DECISIONS in worklog.11
+ch-05.f1.id = CH-05.1
+ch-05.f1.status = done
+ch-05.f1.text = Locker prop: texture, collider, open animation, assets.world.lockers[] coordinate list, placed in the current zones for now.
+ch-05.f2.id = CH-05.2
+ch-05.f2.status = done
+ch-05.f2.text = Only the beast opens lockers: aim the reticle at one (scanTargets cone) to designate it, the beast runs over, channels with a progress ring, opens and spills ELITE-quality loot (elite mod-chip chance, elite CR/PW, double roll). Player prompt says "BEAST ONLY — point reticle".
+ch-05.f3.id = CH-05.3
+ch-05.f3.status = done
+ch-05.f3.text = New beast mod SCAVENGE (decreasing ramp: 12 s at R0 → 2 s at R10) in the companion column; lockers respawn on a timer; requires beast enabled and alive.
+
+# ══ 07. PHASE 3 — WORLD (v0.9.0) ══════════════════════════════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# order: ch-06, ch-07, ch-08, ch-09, ch-10 · ch-36 (added 2026-10-28, worklog.9 — runs in GLOBAL id order, see ch-36.note)
+ch-06.id = CH-06
+ch-06.phase = 3 · World (v0.9.0)
+ch-06.title = More breakable containers (barrels, chests)
+ch-06.size = M
+ch-06.status = done
+ch-06.deps = CH-02
+ch-06.files = world.js, textures.js, assets.js, specials.js
+ch-06.keywords = barrel, chest, crate, breakable, container
+ch-06.est.read.k = 22.3
+ch-06.est.out.k = 9.2
+ch-06.est.total.k = 31.5
+ch-06.note = SHIPPED 2026-10-28 — phase 3 opened (1/6) · stated decisions in worklog.13 · f4 was added 2026-10-28 by mini routing (worklog.10: keyword "crate" hit CH-06; "damage/type" hits on CH-25 overridden for scope — CH-25 = the ENEMY pipeline, prop threshold = container scope, worklog.5 precedent) · the old per-zone crates lists moved INTO assets.world.containers.zones byte-identically (crate-coordinate pins in the harness) · lockers stay NON-breakable (CH-05 contract intact) · verified by a 155-check Node harness (scripts/test_ch06.mjs) + a 21-check live headless-Chromium smoke (scripts/smoke_ch06.cjs) driving the real world in-page
+ch-06.f1.id = CH-06.1
+ch-06.f1.status = done
+ch-06.f1.text = Barrel and chest props with procedural textures; own HP and debris style (wood vs metal); bullets/melee chip them, one rocket shell still kills.
+ch-06.f2.id = CH-06.2
+ch-06.f2.status = done
+ch-06.f2.text = assets.world.containers mix per zone; stacked props chain-collapse with their base like crates.
+ch-06.f3.id = CH-06.3
+ch-06.f3.status = done
+ch-06.f3.text = Spill tables: barrels = small CR/ammo, chests = better CR + mod-chip chance.
+ch-06.f4.id = CH-06.4
+ch-06.f4.status = done
+ch-06.f4.text = UNIVERSAL BREAK THRESHOLD (user 2026-10-28): crates, barrels and chests break from ANY damage type — no type gate, physical splits and elements alike — as long as the delivered damage lines up with the rocket launcher's 2000 damage mark: one rocket shell (≈2000) breaks instantly, lesser hits keep chipping the same prop HP pool (f1) until the 2000 mark is reached; break threshold lives in assets (breakThreshold default 2000, keyed to the launcher's per-shell damage, not hard-coded); per-material HP (wood vs metal) stays ≤ the mark so the f1 "one rocket shell still kills" contract holds; props have no shields/armor — typed hits apply raw totals once the CH-25 pipeline ships.
+ch-07.id = CH-07
+ch-07.phase = 3 · World (v0.9.0)
+ch-07.title = Hangar bay expansion
+ch-07.size = M
+ch-07.status = todo
+ch-07.deps = none
+ch-07.files = world.js, assets.js, textures.js, enemy.js
+ch-07.keywords = hangar, bay, expand
+ch-07.est.read.k = 19.9
+ch-07.est.out.k = 9
+ch-07.est.total.k = 28.9
+ch-07.f1.id = CH-07.1
+ch-07.f1.status = todo
+ch-07.f1.text = Enlarge the hangar via assets.world.hangar dimensions: extra bays, gantry/catwalk extension, more cover and containers, zone-culled lights (draw calls ≤ ~200).
+ch-07.f2.id = CH-07.2
+ch-07.f2.status = todo
+ch-07.f2.text = Fix colliders, ramp, exit door and zoneAt bounds; add spawns at hangar level L5.
+ch-08.id = CH-08
+ch-08.phase = 3 · World (v0.9.0)
+ch-08.title = Corridors between city sections
+ch-08.size = M
+ch-08.status = todo
+ch-08.deps = none
+ch-08.files = world.js, assets.js, textures.js, enemy.js
+ch-08.keywords = city, corridor, section, connector
+ch-08.est.read.k = 19.9
+ch-08.est.out.k = 10.2
+ch-08.est.total.k = 30.1
+ch-08.f1.id = CH-08.1
+ch-08.f1.status = todo
+ch-08.f1.text = Corridor connectors (walls, roof, dim lights, doors) joining the city blocks, defined as a segment list in assets.world.city.
+ch-08.f2.id = CH-08.2
+ch-08.f2.status = todo
+ch-08.f2.text = zoneAt/radar/fog treat corridors correctly; spawns at city level L8; optional teleport entries.
+ch-08.f3.id = CH-08.3
+ch-08.f3.status = todo
+ch-08.f3.text = CITY EXTRACTION POST REMOVAL (user 2026-10-28): remove the extraction post standing in the middle of the city road (cityscape prop from the v0.7 extraction-beacon flow, H070.f2) — delete the prop + its collider from the city layout so the road reads clear; STATED DECISION AT PATCH TIME: if that post is the city zone's only extraction trigger, RELOCATE it to a roadside/adjacent spot instead of deleting (the extraction flow itself is untouched — shipped H070 scope, future CH-36 home-base flow rides it); no other zone's extraction posts affected.
+ch-09.id = CH-09
+ch-09.phase = 3 · World (v0.9.0)
+ch-09.title = More valley tile sets outside the city
+ch-09.size = M
+ch-09.status = todo
+ch-09.deps = none
+ch-09.files = assets.js, world.js, textures.js, main.js
+ch-09.keywords = valley, tile, expanse, canyon, wilderness
+ch-09.est.read.k = 20.5
+ch-09.est.out.k = 9
+ch-09.est.total.k = 29.5
+ch-09.f1.id = CH-09.1
+ch-09.f1.status = todo
+ch-09.f1.text = Add 4–6 new valley/canyon tile sets (ASSUMPTION: dry riverbed, canyon pass, rocky basin, ridge…) laid out outside the city edge, plugged into the L10→L80 level curve.
+ch-09.f2.id = CH-09.2
+ch-09.f2.status = todo
+ch-09.f2.text = Harvest/ore config per tile, zoneFx entries, 15-s neighbour reinforcement works, new tiles listed in the navigation list.
+ch-09.f3.id = CH-09.3
+ch-09.f3.status = todo
+ch-09.f3.text = Cityscape ring pass (user 2026-10-28): layer the new valley sets tightly AROUND the city edge so the wilds read as surrounding the cityscape — no jarring biome seams in the immediate ring (snow never meets desert, water never meets desert).
+ch-10.id = CH-10
+ch-10.phase = 3 · World (v0.9.0)
+ch-10.title = Locker placement pass
+ch-10.size = S
+ch-10.status = todo
+ch-10.deps = CH-05, CH-07, CH-08
+ch-10.files = assets.js, world.js
+ch-10.keywords = locker, placement
+ch-10.est.read.k = 13.4
+ch-10.est.out.k = 4
+ch-10.est.total.k = 17.4
+ch-10.f1.id = CH-10.1
+ch-10.f1.status = todo
+ch-10.f1.text = Place lockers in the expanded hangar, the new corridors, the city and expanse points of interest; tune elite-loot density so it is not farmable.
+
+ch-36.id = CH-36
+ch-36.phase = 3 · World (v0.9.0)
+ch-36.title = Extract loading screen + home base (shuttle interior)
+ch-36.size = M
+ch-36.status = todo
+ch-36.deps = none
+ch-36.files = world.js, hud.js, assets.js, textures.js
+ch-36.keywords = home base, shuttle, loading screen, extract, extraction, windshield, hub, interior, workstation
+ch-36.est.read.k = 23.4
+ch-36.est.out.k = 9.6
+ch-36.est.total.k = 33.0
+ch-36.note = born 2026-10-28 (crit/bond routing session, worklog.9) — no open-chunk keyword hit (extraction scope lives in shipped H070; teleport listing lands in CH-12, cross-ref f3) · placed in phase 3 for world/hub scope, but per ai.new-chunk.rule it competes for plan.next in GLOBAL id order → runs after CH-35 unless the user promotes it (user.sort)
+ch-36.f1.id = CH-36.1
+ch-36.f1.status = todo
+ch-36.f1.text = EXTRACT LOADING SCREEN (user 2026-10-28): triggering extraction shows a loading screen featuring a SPACE SHUTTLE (procedural canvas/texture art — no video, inside the HD 3000 budget) with a progress readout while the destination scene builds, then ports the player to the home base.
+ch-36.f2.id = CH-36.2
+ch-36.f2.status = todo
+ch-36.f2.text = HOME BASE = shuttle INTERIOR zone (user 2026-10-28): large windshield display at the front (view out over the world — skybox render or live camera per HD 3000 budget), a narrow hallway with workstations on both sides, and rooms in the back (ASSUMPTION: back-room functions TBD — candidates: mod-bench kiosk for CH-16, salvage/display, reward stash — confirm before coding); own lighting, zone-culled, draw calls held ≤ ~200.
+ch-36.f3.id = CH-36.3
+ch-36.f3.status = todo
+ch-36.f3.text = Flow integration: the v0.7 extraction-beacon flow becomes extract → loading screen → home base; an exit at the shuttle ramp/door returns the player to the field (last zone or NAVIGATE choice); home base listed in the CH-12 NAVIGATE/teleport list when phase 4 ships; save-safe, no meta schema change.
+
+# ══ 08. PHASE 4 — PAUSE MENU & MOD UI (v0.10.0) ═══════════════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# order: ch-11, ch-12, ch-13, ch-14, ch-15, ch-16, ch-17
+ch-11.id = CH-11
+ch-11.phase = 4 · Pause menu & mod UI (v0.10.0)
+ch-11.title = Pause menu shell (Warframe layout)
+ch-11.size = L
+ch-11.status = todo
+ch-11.deps = CH-01
+ch-11.files = index.html, hud.css, input.js, main.js, hud.js, textures.js
+ch-11.keywords = pause, menu, warframe, character, layout, xmb, menu item, avatar, currency, ticker, vitruvian, color scheme, theme, opaque menu
+ch-11.est.read.k = 16.8
+ch-11.est.out.k = 14.6
+ch-11.est.total.k = 31.4
+ch-11.note = f4 added 2026-10-28 (worklog.20): ORIGINAL XMB MENU ITEM — strict keyword win, no override needed ("pause"+"menu" = 2 hits on the open chunk; "xmb" dead-hits DONE CH-04, which never routes; CH-17 owns the retirement step but scored 0 keywords — handled as a cross-ref contract change via ch-17.note, not a re-route) · ch-11.keywords += xmb, menu item (future XMB requests route here instead of dead-hitting done CH-04) · est re-keyed: read 13.9 unchanged (same five files — the legacy XMB lives in index.html/hud.js/input.js, all already listed), out 11 → 12.2, total 24.9 → 26.1 (GREEN ≤ 40k) · f5 added 2026-10-28 (worklog.21): SPECIAL PAUSE MENU reference styling — the user's image pins the look (translucent left-stacked text menu over the live scene, avatar + quick icons top-left, currencies top-right, bottom ticker, EXIT chip bottom-right); strict "pause"+"menu" win, no override; reference menu items without game equivalents (MARKET · OPERATOR · COMMUNICATION · QUESTS) are NOT added (ASSUMPTION in-text); est re-keyed: read 13.9 unchanged, out 12.2 → 13.4, total 26.1 → 27.3 (GREEN ≤ 40k) · f6 added 2026-10-28 (worklog.23): VITRUVIAN OPAQUE-MENU THEME — strict keyword win, no override ("warframe"+"menu" = 2 hits on the open chunk; "color" has no open-chunk hit — the reticle-color states are CH-40.7, a DONE-chunk feature, and HUD scope; "vitruvian"/"scheme"/"opaque" hit nothing); cross-ref contract change on CH-43 via ch-43.note (ch-17.note precedent — the title/login screen binds to the f6 tokens); ch-11.keywords += vitruvian, color scheme, theme, opaque menu (future theme/skin requests route here) · files += textures.js (shared ornament canvas); est re-keyed: read 13.9 → 16.8 (+22,099 B, §03), out 13.4 → 14.6, total 27.3 → 31.4 (GREEN ≤ 40k)
+ch-11.f1.id = CH-11.1
+ch-11.f1.status = todo
+ch-11.f1.text = New js/pausemenu.js + css/pause.css: translucent overlay over the frozen scene, menu list on the left, frame character on the right (low-cost canvas/SVG bust with idle sway — no second WebGL renderer on the HD 3000).
+ch-11.f2.id = CH-11.2
+ch-11.f2.status = todo
+ch-11.f2.text = Top level: NAVIGATE · EQUIPMENT · PROFILE · CODEX · TASKS · OPTIONS · END GAME; stacked submenus with a breadcrumb; stick/D-pad/mouse nav, A/B, Esc/Start.
+ch-11.f3.id = CH-11.3
+ch-11.f3.status = todo
+ch-11.f3.text = Keep the old XMB reachable behind a flag until the f4 ORIGINAL XMB menu item ships (amended 2026-10-28, worklog.20: original contract said "until CH-17" — the CH-17 retirement is cancelled, the XMB now survives permanently as a menu item).
+ch-11.f4.id = CH-11.4
+ch-11.f4.status = todo
+ch-11.f4.text = ORIGINAL XMB MENU ITEM (user 2026-10-28): when the pause menu is redesigned, keep the original copy of the XMB as a selectable top-level menu item — an "ORIGINAL XMB" entry in the f2 top-level list that swaps the new shell for the UNTOUCHED legacy XMB (full original copy, not a reskin or partial rebuild); selection persists in the meta save (ac-meta-v3 idempotent, same pattern as CH-40.6) so the game reopens in whichever menu was last used; f3's flag is the interim dev path — f4 graduates it to a user-facing item; CH-17.1's legacy-XMB retirement is STRUCK (see ch-17.note).
+ch-11.f5.id = CH-11.5
+ch-11.f5.status = todo
+ch-11.f5.text = SPECIAL PAUSE MENU — REFERENCE STYLING (user 2026-10-28, reference image): the f1 shell adopts the reference's look — translucent dark overlay over the LIVE frozen scene with the frame bust visible on the right (f1 confirmed), the menu as a plain LEFT-STACKED text column (no panels/boxes — just words with a focus highlight); corner furniture: avatar chip + two quick-icon buttons top-left, wallet readout top-right (CR + PW with icons), a one-line bottom ticker (last mission result / news), and an EXIT chip bottom-right; menu entries stay the game's f2 list (NAVIGATE · EQUIPMENT · PROFILE · CODEX · TASKS · OPTIONS · END GAME) — reference items without game equivalents (MARKET · OPERATOR · COMMUNICATION · QUESTS) are NOT added (ASSUMPTION flagged — confirm at patch time); DOM-only, hud.css, HD 3000 trivial; f4 ORIGINAL XMB menu item unaffected (the XMB remains the untouched original).
+ch-11.f6.id = CH-11.6
+ch-11.f6.status = todo
+ch-11.f6.text = VITRUVIAN OPAQUE-MENU THEME (user 2026-10-28, reference upload/vitruvian.png — the Warframe Vitruvian schematic, scanned + PIL color-sampled via scripts/sample_vitruvian.py): extract its exact palette + ornament language into ONE shared design-token set and make it the mandatory skin for EVERY opaque menu surface in game — the CH-11 shell (f1 overlay tint · f2 lists/breadcrumbs · f5 chrome), all in-shell submenu pages (CH-12/13/14/15/16/28 render inside the shell and inherit), and the CH-43.1 title/login screen (contract note added: ch-43.note); f4 ORIGINAL XMB EXEMPT (the untouched legacy copy stays original); HUD excluded — CH-40.8's game-window overlay is not a menu (ASSUMPTION: "opaque menus" = full menu surfaces, incl. the translucent f5 shell — its tint/chrome recolor to the tokens while the live scene still shows through; confirm at patch time). Scanned palette (sampled): bg deep midnight indigo #1D1B2B with a plum cast #252230 and near-black vignette corners #12101D; warm olive-gold center wash #39302E as a soft radial glow behind panel content; antique-gold line-work #908468 (avg stroke) with brighter sand-gold #A69974 for crisp strokes and #8A7F63 figure contours; pale cream hairlines #D6CBB2; node/glow accents #EBDFB5. Ornament grammar (scanned): 1px gold hairline rules · calligraphic corner flourishes · branching node-and-line trees for list/nav structure · small cross + arrow glyphs as focus/expand markers · a vertical glowing node rail as the selection/progress spine · faint pointed-arch outlines as background texture · decorative script-strip headers; type: small-caps gold labels over cream body text, focus highlight = node-glow cream. Implementation: tokens as CSS vars in hud.css consumed by the shell + all in-shell pages; ornament art (flourishes/arches/rail) as procedural canvas/sprites in textures.js (CH-36.f1 approach, shared with CH-43.1); DOM-only, zero per-frame cost, HD 3000 trivial; soft dep: CH-43 may execute before CH-11 (deps none) — the token VALUES live in this spec, so either chunk can implement them first without a code dep.
+ch-12.id = CH-12
+ch-12.phase = 4 · Pause menu & mod UI (v0.10.0)
+ch-12.title = Navigate · Profile · Codex · Tasks · Options · End Game
+ch-12.size = M
+ch-12.status = todo
+ch-12.deps = CH-11, CH-09
+ch-12.files = hud.js, assets.js, main.js
+ch-12.keywords = navigate, profile, codex, tasks, options, end, teleport
+ch-12.est.read.k = 14.8
+ch-12.est.out.k = 9
+ch-12.est.total.k = 23.8
+ch-12.f1.id = CH-12.1
+ch-12.f1.status = todo
+ch-12.f1.text = NAVIGATE = tile sets / spawn areas grouped hangar · valley · city · expanse (incl. CH-09 tiles). PROFILE = wallet, stats, savestate. OPTIONS = controls, quality, enemy levels, audio.
+ch-12.f2.id = CH-12.2
+ch-12.f2.status = todo
+ch-12.f2.text = CODEX (new): bestiary, materials, weapons, mods with seen-flags; TASKS (new): objective list starting from the current objective line.
+ch-12.f3.id = CH-12.3
+ch-12.f3.status = todo
+ch-12.f3.text = END GAME = reset area / reset run / quit to title, using the confirm dialog.
+ch-13.id = CH-13
+ch-13.phase = 4 · Pause menu & mod UI (v0.10.0)
+ch-13.title = Equipment hub (frame, weapons, pets, salvage, abilities)
+ch-13.size = M
+ch-13.status = todo
+ch-13.deps = CH-11
+ch-13.files = hud.js, weapon.js, companions.js, assets.js, textures.js
+ch-13.keywords = equipment, frame, weapon, pet, salvage, abilities, slot
+ch-13.note = f3 added 2026-10-28 (worklog.15): companion/weapon color customization routed here — keywords "weapon"+"pet" = most hits (rule-followed); "options" substring-hit CH-12 overridden for scope (global options menu ≠ per-item appearance customization, worklog.5 precedent); textures.js added to files for the tint hooks, est keys re-measured
+ch-13.est.read.k = 20.3
+ch-13.est.out.k = 10.2
+ch-13.est.total.k = 30.5
+ch-13.f1.id = CH-13.1
+ch-13.f1.status = todo
+ch-13.f1.text = EQUIPMENT picks FRAME, an owned WEAPON TYPE (pistol, shotgun, rifle, sniper, launcher) or an owned PET TYPE (sentinel, beast); selecting one opens its Modding screen (stub until CH-14).
+ch-13.f2.id = CH-13.2
+ch-13.f2.status = todo
+ch-13.f2.text = Move SALVAGE (X sells, confirm) and ABILITIES (+ R2 slot assignment) under EQUIPMENT; add MOD BENCH entry (stub until CH-16).
+ch-13.f3.id = CH-13.3
+ch-13.f3.status = todo
+ch-13.f3.text = COMPANION & WEAPON COLOR CUSTOMIZATION (user 2026-10-28): appearance sub-screen under EQUIPMENT for the equipped companion — targets: SENTINEL (robot body), BEAST (pet) and COMPANION WEAPONS; per-target color channels MAIN COLOR + HIGHLIGHTS, plus WEAPON COLOR for the companion's weapon; fixed swatch palette: blacks, reds, oranges, greens, white, grays, purple, blues (ASSUMPTION: fixed swatches, no free-form picker — confirm); applies as material tints over the procedural textures (textures.js tint hooks, no new atlases), persists in the meta save as a cosmetic block (idempotent ac-meta-v3 extension, no lost data), HD 3000-safe (shared materials, no per-frame work).
+ch-14.id = CH-14
+ch-14.phase = 4 · Pause menu & mod UI (v0.10.0)
+ch-14.title = Mod panel framework
+ch-14.size = L
+ch-14.status = todo
+ch-14.deps = CH-03, CH-11, CH-13
+ch-14.files = hud.css, mods.js, assets.js, hud.js
+ch-14.keywords = mod panel, upgrade, capacity, config, slot, drain
+ch-14.est.read.k = 14.8
+ch-14.est.out.k = 12
+ch-14.est.total.k = 26.8
+ch-14.note = user 2026-10-28 re-requested "allow equipping/unequipping of mods" — already the contract of CH-14.2 (equip / swap / unequip with drain-vs-capacity) + CH-15.1 (effects only for equipped cards); no new scope, cross-ref logged in worklog.8 so the request is not lost
+ch-14.f1.id = CH-14.1
+ch-14.f1.status = todo
+ch-14.f1.text = Mod panel per the reference image: title "UPGRADES: <ITEM> RANK n", CONFIG A/B/C tabs, left stat panel (base → modded), 8-slot grid + a special/unique-trait slot, capacity x/50, card tray with drain and sort, ACTIONS/BACK.
+ch-14.f2.id = CH-14.2
+ch-14.f2.status = todo
+ch-14.f2.text = Equip / swap / unequip cards with drain-vs-capacity enforcement; loadouts[itemId][config] = slot→card persisted.
+ch-15.id = CH-15
+ch-15.phase = 4 · Pause menu & mod UI (v0.10.0)
+ch-15.title = Wire the panel to every moddable item
+ch-15.size = L
+ch-15.status = todo
+ch-15.deps = CH-14
+ch-15.files = mods.js, weapon.js, player.js, companions.js, assets.js
+ch-15.keywords = moddable, stats, frame, weapon, loadout
+ch-15.est.read.k = 15.8
+ch-15.est.out.k = 11
+ch-15.est.total.k = 26.8
+ch-15.f1.id = CH-15.1
+ch-15.f1.status = todo
+ch-15.f1.text = Effects apply only for cards equipped in the active config of frame, each weapon, sentinel, beast; per-item stat lists and slot caps; cards filtered by item compatibility (pool).
+ch-15.f2.id = CH-15.2
+ch-15.f2.status = todo
+ch-15.f2.text = Migration: auto-equip each old purchased rank so nobody loses power; live stat recompute feeds the panel.
+ch-16.id = CH-16
+ch-16.phase = 4 · Pause menu & mod UI (v0.10.0)
+ch-16.title = Mod bench
+ch-16.size = L
+ch-16.status = todo
+ch-16.deps = CH-03, CH-14
+ch-16.files = hud.css, mods.js, hud.js
+ch-16.keywords = bench, fusion, dissolve, sell, duplicate, grid
+ch-16.est.read.k = 9.2
+ch-16.est.out.k = 10
+ch-16.est.total.k = 19.2
+ch-16.f1.id = CH-16.1
+ch-16.f1.status = todo
+ch-16.f1.text = Scrollable 7-column grid of all collected mod cards with search, category filter tabs, sort (recent/name/rank) and Total / Duplicates counters, controller + mouse nav, hint bar.
+ch-16.f2.id = CH-16.2
+ch-16.f2.status = todo
+ch-16.f2.text = Actions row: FUSION (rank up for CR+PW), SELL, DISSOLVE (scrap) with value preview; buttons "Sell all duplicates but one" and "Scrap all duplicates but one" (selected mod + global), all confirmed.
+ch-17.id = CH-17
+ch-17.phase = 4 · Pause menu & mod UI (v0.10.0)
+ch-17.title = Polish & regression sweep
+ch-17.size = S
+ch-17.status = todo
+ch-17.deps = CH-16, CH-12, CH-10
+ch-17.files = index.html, hud.js, main.js
+ch-17.keywords = polish, readme, version, regression
+ch-17.est.read.k = 10.2
+ch-17.est.out.k = 6
+ch-17.est.total.k = 16.2
+ch-17.note = amended 2026-10-28 (worklog.20): f1's "Retire the legacy XMB" clause is STRUCK by user request — the legacy XMB survives permanently as the ch-11.f4 ORIGINAL XMB menu item; the rest of f1 is unchanged (v0.10.0 bump, README "What's new", smoke-test checklist, low-quality frame-time check); est unchanged (cancelling a deletion removes work).
+ch-17.f1.id = CH-17.1
+ch-17.f1.status = todo
+ch-17.f1.text = [Amended 2026-10-28, worklog.20: legacy-XMB retirement CANCELLED — the XMB ships forever as the ch-11.f4 menu item] Bump to v0.10.0, update README "What's new", run a smoke-test checklist, check frame-time on low quality.
+
+# ══ 08B. PHASE 5 — ARSENAL & MOVEMENT FEEL (v0.11.0) ═════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# born from the 2026-10-28 routing session — user requests with no keyword hit on any open chunk
+# order: ch-18, ch-19, ch-20
+ch-18.id = CH-18
+ch-18.phase = 5 · Arsenal & movement feel (v0.11.0)
+ch-18.title = Player flamethrower (pistol ammo)
+ch-18.size = M
+ch-18.status = todo
+ch-18.deps = none
+ch-18.files = weapon.js, assets.js, textures.js, audio.js, hud.js
+ch-18.keywords = flamethrower, flame, thrower, fire, burn, pistol, weapon
+ch-18.est.read.k = 21.6
+ch-18.est.out.k = 8
+ch-18.est.total.k = 29.6
+ch-18.note = cross-ref (2026-10-28 combat routing): the HEAVY FLAMER is a separate heavy archetype → CH-34.1; this chunk keeps the personal pistol-ammo flamethrower; shared burn/heat tech noted in CH-34
+ch-18.f1.id = CH-18.1
+ch-18.f1.status = todo
+ch-18.f1.text = New player weapon FLAMETHROWER: short-range flame cone feeding on PISTOL ammo (drain per second of stream); enemies take direct damage + a burn damage-over-time tick that outlives the stream briefly. Joins the v0.7 locked-weapon ammo-scavenge unlock flow. ASSUMPTION: drops ride the CH-02 itemPool pistol family (pistol+shotgun 80 weight band) — confirm before coding.
+ch-18.f2.id = CH-18.2
+ch-18.f2.status = todo
+ch-18.f2.text = assets tunables (range, cone angle, dps, burn dps/duration, ammo/s) + procedural flame textures/particles inside the HD 3000 budget (particle cap, zone-culled emitters, no per-frame allocations).
+ch-18.f3.id = CH-18.3
+ch-18.f3.status = todo
+ch-18.f3.text = XMB weapon card + HUD ammo readout + audio (roar loop + ignite/burn ticks); weapon sell/scrap values consistent with the other guns.
+ch-19.id = CH-19
+ch-19.phase = 5 · Arsenal & movement feel (v0.11.0)
+ch-19.title = Orbital strike call-in
+ch-19.size = M
+ch-19.status = todo
+ch-19.deps = none
+ch-19.files = specials.js, assets.js, hud.js, audio.js
+ch-19.keywords = orbital, strike, call, ability, special, r2
+ch-19.est.read.k = 21.0
+ch-19.est.out.k = 7
+ch-19.est.total.k = 28.0
+ch-19.f1.id = CH-19.1
+ch-19.f1.status = todo
+ch-19.f1.text = New R2 special ability ORBITAL STRIKE: designate a target point under the reticle, short call-in delay, then a column barrage (serial AoE blasts) dealing heavy damage; occupies one of the 4 R2 slots (v0.6.0 system). ASSUMPTION: cost = long cooldown + energy — confirm before coding.
+ch-19.f2.id = CH-19.2
+ch-19.f2.status = todo
+ch-19.f2.text = VFX/SFX inside the HD 3000 budget (zone-culled, capped debris/lights) + self-damage/friendly-fire rules + HUD prompt + toast.
+ch-20.id = CH-20
+ch-20.phase = 5 · Arsenal & movement feel (v0.11.0)
+ch-20.title = Warframe-style double jump (movement feel pass)
+ch-20.size = S
+ch-20.status = todo
+ch-20.deps = none
+ch-20.files = player.js, assets.js
+ch-20.keywords = jump, double, glide, air, movement, rank 0
+ch-20.est.read.k = 7.9
+ch-20.est.out.k = 5
+ch-20.est.total.k = 12.9
+ch-20.note = the keyword heuristic hit CH-11 via the incidental word "warframe" — overridden for scope (menu shell ≠ movement tuning), registered here as a new chunk instead
+ch-20.f1.id = CH-20.1
+ch-20.f1.status = todo
+ch-20.f1.text = Make the free double jump / jump+glide feel like a Warframe double jump at RANK 0 — much higher than today. Default decision: raise the jp-air ramp floor (currently min 5% → propose ~70% at R0, growth to 200% unchanged) + retune base jump/glide gravity arcs in assets. ASSUMPTION: exact floor % and whether a base glide is added — confirm before coding.
+ch-20.f2.id = CH-20.2
+ch-20.f2.status = todo
+ch-20.f2.text = Verify no regressions: JETPACK mod still grows meaningfully to R10, knockdown/STEADY FEET interplay unchanged, ceiling/head-bump collisions sane, PSP-mode watchdog ladder unaffected.
+
+# ══ 08C. PHASE 6 — OPEN WORLD & FLIGHT (v0.12.0) ═══════════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# born from the 2026-10-28 routing session — user "eventually" items grouped here (NOT in phase 3, so v0.9.0 is not gated)
+# order: ch-21, ch-22, ch-23, ch-24
+ch-21.id = CH-21
+ch-21.phase = 6 · Open world & flight (v0.12.0)
+ch-21.title = Vast biome expanse (smart biome matching)
+ch-21.size = L
+ch-21.status = todo
+ch-21.deps = CH-09
+ch-21.files = world.js, assets.js, textures.js, main.js
+ch-21.keywords = biome, expanse, map, spread, adjacency, city, region
+ch-21.est.read.k = 20.7
+ch-21.est.out.k = 11
+ch-21.est.total.k = 31.7
+ch-21.f1.id = CH-21.1
+ch-21.f1.status = todo
+ch-21.f1.text = Map-scale biome layout: vast biome regions spread across the whole map around the city clusters (biome rings and pockets beyond the current city edge), built from the existing + CH-09 tile sets.
+ch-21.f2.id = CH-21.2
+ch-21.f2.status = todo
+ch-21.f2.text = Intelligent biome matching: an adjacency constraint table in assets — hard rules: snow never borders desert, water never borders desert (user 2026-10-28) + soft preferences — enforced by the layout pass, no jarring seams.
+ch-21.f3.id = CH-21.3
+ch-21.f3.status = todo
+ch-21.f3.text = zoneAt / radar / fog / L10→L80 level curve / spawn + harvest configs cover the new regions; navigation list updated; draw-call budget held ≤ ~200.
+ch-22.id = CH-22
+ch-22.phase = 6 · Open world & flight (v0.12.0)
+ch-22.title = Third-person view
+ch-22.size = L
+ch-22.status = todo
+ch-22.deps = none
+ch-22.files = main.js, player.js, input.js, hud.js, assets.js
+ch-22.keywords = third person, camera, view, over shoulder, aim down sights, ads, zoom
+ch-22.est.read.k = 20.2
+ch-22.est.out.k = 12.2
+ch-22.est.total.k = 32.4
+ch-22.note = registered from the user's own precondition ("after third person view is established") — named but not yet specced; confirm scope before running · f3 added 2026-10-28 (worklog.21): ADS REFERENCE SPEC — the user's reference image pins the f1 "crosshair + ADS adaptation" clause (over-shoulder offset, FOV zoom + edge blur, distance/magnification readouts, aim-target HP bar, typed damage breakdown); strict keyword win ("third person"+"camera"+"over shoulder" on the open chunk), no override; est re-keyed: read 20.2 unchanged (same five files), out 11 → 12.2, total 31.2 → 32.4 (GREEN ≤ 40k); interplay: CH-27.f4 sniper SCOPE mod stacks magnification on top, CH-40.7 reticle states ride the aim point
+ch-22.f1.id = CH-22.1
+ch-22.f1.status = todo
+ch-22.f1.text = ASSUMPTION (named by the user as the flight/terrain precondition — confirm scope before coding): over-the-shoulder third-person camera toggle with camera-vs-world collision, reticle/aim-direction remap, crosshair + ADS adaptation; single renderer, HD 3000 budget.
+ch-22.f2.id = CH-22.2
+ch-22.f2.status = todo
+ch-22.f2.text = Input & HUD adaptation: pointer-lock aim in third person, reticle-designated drone + scavenge designation stay correct, weapon fire origin moves from the camera to the frame.
+ch-22.f3.id = CH-22.3
+ch-22.f3.status = todo
+ch-22.f3.text = AIM DOWN SIGHTS — REFERENCE SPEC (user 2026-10-28, reference image): while aiming in third person the camera pulls in OVER THE SHOULDER (character framed in the left third, weapon visible lower-left), FOV zooms with a subtle background/edge blur, and a compact center readout shows TARGET DISTANCE in meters (e.g. 58.4m) + MAGNIFICATION (e.g. 1.5x, rank/mod-scaled); while aiming AT an enemy its HP bar renders top-right (value + name + level row — separate from the CH-40.2 in-world nameplates); a bottom-right damage readout mirrors the weapon's typed split (e.g. "17.2 TOXIC PROC · 14.2 HEAT · 38.9 COLD · IMPACT") read-side from the CH-25 typed pipeline; reticle keeps its CH-40.7 dot/color states and eases to the aim point; single renderer, no per-frame allocations, HD 3000 budget held; interplay: CH-27.f4 sniper SCOPE mod stacks magnification on top and may swap this readout for the scope overlay at high rank.
+ch-23.id = CH-23
+ch-23.phase = 6 · Open world & flight (v0.12.0)
+ch-23.title = Anthem-style flight
+ch-23.size = L
+ch-23.status = todo
+ch-23.deps = CH-21, CH-22
+ch-23.files = player.js, input.js, assets.js, hud.js, audio.js
+ch-23.keywords = flight, fly, anthem, hover, fuel
+ch-23.est.read.k = 17.6
+ch-23.est.out.k = 10
+ch-23.est.total.k = 27.6
+ch-23.note = user precondition: "after third person view is established, and there's enough things on the map" → deps CH-22 (third person) + CH-21 (vast map content)
+ch-23.f1.id = CH-23.1
+ch-23.f1.status = todo
+ch-23.f1.text = ASSUMPTION: Anthem-style flight — hold-to-hover + thrust bursts on a fuel/heat meter, smooth landing, real air control; builds on the CH-20 jump/glide arcs. Confirm feel targets (speeds, fuel economy) before coding.
+ch-23.f2.id = CH-23.2
+ch-23.f2.status = todo
+ch-23.f2.text = Reconcile with the JETPACK mod + double jump (no double-dipping movement multipliers); HUD fuel readout + thruster audio (zone-culled); enemy engagement rules vs airborne players.
+ch-24.id = CH-24
+ch-24.phase = 6 · Open world & flight (v0.12.0)
+ch-24.title = Minecraft-style mountain & forest regions
+ch-24.size = L
+ch-24.status = todo
+ch-24.deps = CH-21, CH-22
+ch-24.files = world.js, textures.js, assets.js, main.js
+ch-24.keywords = mountain, forest, minecraft, terrain, region, biome
+ch-24.est.read.k = 20.7
+ch-24.est.out.k = 11
+ch-24.est.total.k = 31.7
+ch-24.f1.id = CH-24.1
+ch-24.f1.status = todo
+ch-24.f1.text = ASSUMPTION: Minecraft-inspired MOUNTAIN + FOREST regions — terraced/voxel-flavored heightfields, tall peaks, dense tree cover with harvestable wood/ore; placed by the CH-21 biome layout (adjacency rules apply). Confirm visual target before coding.
+ch-24.f2.id = CH-24.2
+ch-24.f2.status = todo
+ch-24.f2.text = Traversal + spawning: climbing/fall-damage tuning for steep terrain (CH-23 flight optional), enemy spawns on the region level curve, navigation list + zoneFx entries.
+
+# ══ 08D. PHASE 7 — COMBAT SYSTEMS (v0.13.0) ══════════════════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# born from the 2026-10-28 combat routing session (worklog.8) — the foundation everything combat
+# hangs on: typed damage + crit/status stats + REAL armor (CH-25) → status stacks (CH-26) →
+# elemental mods + combos (CH-27) → HUD combat feedback (CH-28) → old-weapon retrofit + gear
+# level bands (CH-29) · CH-25 is USER-PROMOTED (user.sort) to run right after CH-05, before phase 3
+# order: ch-25, ch-26, ch-27, ch-28, ch-29 · ch-37, ch-38 (added 2026-10-28, worklog.9)
+ch-25.id = CH-25
+ch-25.phase = 7 · Combat systems (v0.13.0)
+ch-25.title = Damage type core (typed damage + crit/status stats + armor layer)
+ch-25.size = L
+ch-25.status = done
+ch-25.deps = none
+ch-25.files = weapon.js, assets.js, enemy.js, specials.js, companions.js, player.js
+ch-25.keywords = damage, type, puncture, impact, slash, heat, cold, electric, toxin, crit, critical, status chance, armor
+ch-25.est.read.k = 25.0
+ch-25.est.out.k = 14.8
+ch-25.est.total.k = 39.8
+ch-25.note = SHIPPED 2026-10-28 — phase 7 opened (1/7) · stated decisions in worklog.12 · typed values ride as FRACTIONS of the moddable scalar so every existing power-mod node keeps working · FILE-SCOPE exceptions: hud.js (f2 XMB readouts) + main.js (NOVA ability hit) — both contract-required, worklog.11 precedent · freeze-ray hp-chew gap found + closed · verified by a 177-check Node harness (scripts/test_ch25.mjs) + a live headless-Chromium smoke driving the real typed pipeline in-page · f5 hotfix 2026-10-28 (worklog.14): typedHit dmg-fallback + R2 missiles/pbolt scalars onto their defs — drone set + both R2 payloads hit for real again; CH-25 stays done
+ch-25.f1.id = CH-25.1
+ch-25.f1.status = done
+ch-25.f1.text = Typed damage model: every player weapon, pet/companion weapon and ability hit carries a physical split (PUNCTURE / IMPACT / SLASH) + optional elemental payloads (HEAT / COLD / ELECTRIC / TOXIN; VOID exotic reserved for CH-26) with per-weapon damage VALUES in assets.weapons (melee nikana + abilities included); one assets.combat.typeMultipliers table drives type-vs-shield / type-vs-health / type-vs-armor (toxin bypasses shields but weaker vs health · shields resist heat · health weak to heat — exact curves stated at patch time).
+ch-25.f2.id = CH-25.2
+ch-25.f2.status = done
+ch-25.f2.text = CRITICAL CHANCE / CRITICAL DAMAGE / STATUS CHANCE as first-class stats on player weapons, pet weapons, companion weapons and ABILITIES; crit multiplies the typed hit and flags it for HUD styling (CH-28); status chance gates every CH-26 proc roll; assets tunables + XMB/HUD stat readouts.
+ch-25.f3.id = CH-25.3
+ch-25.f3.status = done
+ch-25.f3.text = REAL enemy armor layer (user-confirmed 2026-10-28 — SUPERSEDES the CH-04/worklog.6 stated decision "enemies have no armor layer"): armor pool on elite+ first, then regulars; armor mitigates typed damage per the multiplier table; SLASH ignores armor completely; CORROSIVE (CH-27) strips up to 100% at 10 stacks; FREEZE RAY DEF-DOWN vulnerability stacks keep working alongside armor. ARMOR→EHP COEFFICIENT (user 2026-10-28, unified curve both sides): effective health = base health × (1 + armor/300) — 300 armor = +100% base health (200% total EHP) · 600 armor = +200% base health (300% total EHP) · 900 armor = +300% base health (400% total EHP); one assets.combat curve shared with the player-side armor stat (CH-38.1).
+ch-25.f4.id = CH-25.4
+ch-25.f4.status = done
+ch-25.f4.text = One shared damage entry point (applyDamage(enemy, {types, crit, statusChance})) recentered in weapon.js so specials, pets, melee and companions share it — no save migration (no meta schema change); regression: HD 3000 frame-time neutral, the 39-check harness stays green.
+ch-25.f5.id = CH-25.5
+ch-25.f5.status = done
+ch-25.f5.text = REGRESSION FIX (user 2026-10-28: "drone weapons appear to do no damage"): the CH-25.4 typed path built drone hits through typedHit(), which reads the scalar from def.damage — but all five drone defs keep the moddable scalar on the LEGACY `dmg` key (dr-out table-mod field, XMB rows, pod's dmg: W.dmg) → every drone hit was an all-zero typed map (LASER LANCE / MARKSMAN / MINIGUN direct · HOMING POD via splash()'s typed branch · FREEZE RAY hp chew; the ray's shield sap kept working — % of max, never typed — so the beam looked half-alive). FIX: typedHit() falls back to def.dmg (drone defs keep dmg as the ONE moddable key — mods/HUD/pod untouched); SAME CLASS: R2 HOMING MISSILES + PLASMA BOLT carried types with the scalars hard-coded at the call sites (90/60) → scalars moved onto the special defs (damage: 90/60, tunables-in-assets) and the launchers read def.damage; no save/schema impact; regression-checked against the CH-06 harness (155/155).
+ch-26.id = CH-26
+ch-26.phase = 7 · Combat systems (v0.13.0)
+ch-26.title = Status effect system (stacks · elements · physicals · void)
+ch-26.size = L
+ch-26.status = todo
+ch-26.deps = CH-25
+ch-26.files = enemy.js, weapon.js, assets.js, hud.js, companions.js
+ch-26.keywords = status, proc, stack, dot, tick, burn, slow, disorient, bleed, void, hitbox, icon
+ch-26.est.read.k = 23.2
+ch-26.est.out.k = 16.0
+ch-26.est.total.k = 39.2
+ch-26.f1.id = CH-26.1
+ch-26.f1.status = todo
+ch-26.f1.text = Status stack framework: per-enemy status store keyed by type; every proc lasts up to 5 s and stacks to 10× (proc roll = weapon/ability STATUS CHANCE, one roll per damaging hit); stacks decay after expiry; HUD renders stacks over enemy health bars as ICON + COUNT per status, side by side (user example: "ic 10 · ic 5 · ic 2 · ic 7"), color-coded per status — supersedes the interim "pips" choice.
+ch-26.f2.id = CH-26.2
+ch-26.f2.status = todo
+ch-26.f2.text = Element single statuses: HEAT = generic DoT tick (shields resist, health takes bonus); COLD = slows movement + crit-damage bonus on the target per stack (cap 10); ELECTRIC = disrupts shield regen + chance to proc a lightning zap arcing to a nearby enemy; TOXIN = bypasses shields entirely, weaker vs health.
+ch-26.f3.id = CH-26.3
+ch-26.f3.status = todo
+ch-26.f3.text = Physical statuses: PUNCTURE stacks raise the enemy's crit-chance-taken (+2.5%/stack, +25% at 10); IMPACT disorients (wander/scatter, broken aim); SLASH procs are rare (low proc weight) but ignore armor completely and tick as damage-over-time bleeds.
+ch-26.f4.id = CH-26.4
+ch-26.f4.status = todo
+ch-26.f4.text = VOID status (exotic): grows the enemy hitbox per stack up to its WHOLE body size at 10× (hitbox scale hook in enemy.js); ASSUMPTION: first sources = R2 specials only, void mods come later — confirm before coding.
+ch-26.f5.id = CH-26.5
+ch-26.f5.status = todo
+ch-26.f5.text = Companion weapons, pet attacks and abilities roll procs through the same status-chance hooks (sentinel FREEZE RAY keeps its DEF-DOWN identity, now expressed as a proper stack with icon + count).
+ch-27.id = CH-27
+ch-27.phase = 7 · Combat systems (v0.13.0)
+ch-27.title = Elemental proc mods + mod-config combos + sniper scope mod
+ch-27.size = M
+ch-27.status = todo
+ch-27.deps = CH-14, CH-15, CH-26
+ch-27.files = mods.js, assets.js, weapon.js, enemy.js, hud.js
+ch-27.keywords = elemental, viral, gas, corrosive, magnetic, combo, combine, scope, mod, proc chance
+ch-27.est.read.k = 23.0
+ch-27.est.out.k = 12.8
+ch-27.est.total.k = 35.8
+ch-27.note = keyword override: elemental-mod requests substring-hit CH-03/14/15 ("mod") but those are card/UI scope — new gameplay scope routed here, deps CH-14+CH-15 so combos compute inside real mod configs
+ch-27.f1.id = CH-27.1
+ch-27.f1.status = todo
+ch-27.f1.text = Elemental proc mod cards for EVERY weapon pool (pistol, shotgun, rifle, sniper, launcher/heavy, companion weapon): +HEAT / +COLD / +ELECTRIC / +TOXIN proc-chance mods, rank-scaled; dropped through the CH-02 weighted itemPool, stored as ac-meta-v3 cards.
+ch-27.f2.id = CH-27.2
+ch-27.f2.status = todo
+ch-27.f2.text = Mod-config combos (needs CH-14 configs): equipping two different elemental stat mods in one config merges them into a combined element on that weapon — COLD+TOXIN = VIRAL (×3.4 damage at 10 stacks), TOXIN+HEAT = GAS (AoE damage tick around the infected enemy), ELECTRIC+TOXIN = CORROSIVE (at 10 stacks removes 100% armor from elite+ enemies), ELECTRIC+COLD = MAGNETIC (disables shield regen, extra damage vs elite+ shields); combo resolution table in assets, computed at mod-recalc time.
+ch-27.f3.id = CH-27.3
+ch-27.f3.status = todo
+ch-27.f3.text = Combined-status behaviors live enemy-side through the CH-26 stack store (viral / gas / corrosive / magnetic stack effects + their own icons in the status row).
+ch-27.f4.id = CH-27.4
+ch-27.f4.status = todo
+ch-27.f4.text = Sniper SCOPE mod: adds a zoom/ADS scope overlay to snipers (rank-scaled magnification + optional crit bonus on weakpoint hits — synergy with CH-30); ASSUMPTION: vignette + reticle zoom only, no render-target scope on the HD 3000.
+ch-28.id = CH-28
+ch-28.phase = 7 · Combat systems (v0.13.0)
+ch-28.title = Combat HUD feedback (damage numbers + HP numbers)
+ch-28.size = S
+ch-28.status = todo
+ch-28.deps = CH-25
+ch-28.files = hud.js, assets.js, hud.css, input.js
+ch-28.keywords = damage numbers, hud, toggle, hp numbers, floating numbers, bar
+ch-28.est.read.k = 16.7
+ch-28.est.out.k = 8.6
+ch-28.est.total.k = 25.3
+ch-28.f1.id = CH-28.1
+ch-28.f1.status = todo
+ch-28.f1.text = Floating damage numbers (NET-NEW — user-confirmed; zip grep found no existing damage-number code): pooled floating numbers per damaging hit, color-coded by damage type, crits styled bigger/accented; hard concurrent cap + object pooling, no per-frame allocations (HD 3000); toggle SHOW DAMAGE NUMBERS default ON. CRIT REFERENCE IMAGE RECEIVED (user 2026-10-28, Crit_numbers.webp — closes the worklog.8 open item): crit tier ladder WHITE = normal hit (small) → YELLOW = crit tier 1 (larger) → ORANGE = crit tier 2 (larger still) → RED = crit tier 3 / max (largest, ≈2× the small ticks — reference shows red "78" above orange "55"s and small yellow "8" + "5" ticks); font scale grows per tier; STATUS damage-over-time ticks render smaller with the STACK COUNT as a small subscript under the number (reference: "55" with a small "5"); numbers drift upward and fade with slight horizontal scatter. This ladder IS the default styling; per-type coloring still applies to non-crit numbers.
+ch-28.f2.id = CH-28.2
+ch-28.f2.status = todo
+ch-28.f2.text = Enemy HP numbers inside the health bar ("50 / 100"): toggle SHOW ENEMY HP NUMBERS default OFF (bar only by default); rendered inside the existing bar DOM.
+ch-28.f3.id = CH-28.3
+ch-28.f3.status = todo
+ch-28.f3.text = Both toggles persisted in the meta save and surfaced in OPTIONS if CH-12 has shipped (it has in id order); interim console/XMB toggle if ever run out of order.
+ch-29.id = CH-29
+ch-29.phase = 7 · Combat systems (v0.13.0)
+ch-29.title = Old-weapon damage retrofit + gear level bands
+ch-29.size = M
+ch-29.status = todo
+ch-29.deps = CH-25, CH-26
+ch-29.files = assets.js, weapon.js, enemy.js, specials.js
+ch-29.keywords = rework, retrofit, old weapons, balance, level curve, gear, tiers
+ch-29.est.read.k = 20.3
+ch-29.est.out.k = 11.6
+ch-29.est.total.k = 31.9
+ch-29.f1.id = CH-29.1
+ch-29.f1.status = todo
+ch-29.f1.text = RETROFIT PATCH (user 2026-10-28: "old weapons adjusted to properly portray properties… perhaps a patch just to rework old weapons for statuses, after statuses are introduced"): retype EVERY existing weapon (pistols, shotgun, rifle, sniper, launcher, nikana, drone/beast weapons) with proper physical splits + elemental identities and crit/status budgets that match their archetype (e.g. sniper = puncture/crit-heavy, shotgun = impact/slash spread).
+ch-29.f2.id = CH-29.2
+ch-29.f2.status = todo
+ch-29.f2.text = Gear level bands for crit/status (user 2026-10-28): L1-20 gear has little-to-no crit/status · L20-40 starts picking up · L40-60 serious · L60-80 end-game — one assets.combat.gearBands table applied to drops (CH-02 rolls), mod card ranks and weapon stats; mapped onto the game's L10→L80 curve.
+ch-29.f3.id = CH-29.3
+ch-29.f3.status = todo
+ch-29.f3.text = Balance sweep + regression: old saved loadouts stay competitive (no lost power — ai.saves.rule), typed retune verified against elite/kaiju TTKs, AC.game.drops.sim still healthy.
+
+ch-37.id = CH-37
+ch-37.phase = 7 · Combat systems (v0.13.0)
+ch-37.title = Beam & contagion weapon mods (guided ordinance · combustion beam · shivering contagion)
+ch-37.size = M
+ch-37.status = todo
+ch-37.deps = CH-25, CH-26
+ch-37.files = mods.js, weapon.js, companions.js, enemy.js, assets.js
+ch-37.keywords = guided ordinance, combustion beam, shivering contagion, beam mod, contagion, explode on death, torso accuracy, cold spread
+ch-37.est.read.k = 18.6
+ch-37.est.out.k = 9.6
+ch-37.est.total.k = 28.2
+ch-37.note = born 2026-10-28 (worklog.9) · THREE documented keyword overrides (worklog.5 precedent): "beam" substring-hits CH-34 (heavy syphon/flamer WEAPONS ≠ mods), "cold" hits CH-25 (damage core, 39.8k near its cap), generic "mod/weapon" hits CH-14/15/18 — all overridden for scope; the three mods group here as one beam/contagion family · BEAM FAMILY binding: beam weapons today = sentinel FREEZE RAY (CH-04.4) + planned HEAVY SYPHON (CH-34.2); NO player beam-rifle archetype exists in the plan — mods bind to the beam weapon CLASS so any future player beam rifle inherits them (a player beam rifle itself = new user request) · zip recon: enemy rigs already carry torso/head mesh anchors (usable for torso bias) · all three = ac-meta-v3 cards through the CH-02 itemPool, slot legality per CH-15.1
+ch-37.f1.id = CH-37.1
+ch-37.f1.status = todo
+ch-37.f1.text = GUIDED ORDINANCE (beam rifle / sentinel beam rifle mod, user 2026-10-28): +30% accuracy TOWARD THE ENEMY TORSO — beam shots bias their aim point to the target's center-mass (rig torso anchor) and tighten spread by the mod value; ships FLAT +30% (user figure), tunable in assets; once CH-30 ships, the bias targets its registered torso volume.
+ch-37.f2.id = CH-37.2
+ch-37.f2.status = todo
+ch-37.f2.text = COMBUSTION BEAM (beam rifle / companion beam rifle mod, user 2026-10-28): an enemy KILLED by a beam weapon EXPLODES on death — small AoE burst (damage tunable) that applies a SMALL PORTION of the dead enemy's CH-26 status stacks to every enemy caught in the blast (fraction + radius tunable, ~6 m default); capped one-shot VFX + zone-culled light, no per-frame allocations.
+ch-37.f3.id = CH-37.3
+ch-37.f3.status = todo
+ch-37.f3.text = SHIVERING CONTAGION (companion weapon OR player rifle mod, user 2026-10-28): on a COLD status proc, 30% chance to apply that same cold proc to every enemy within 6 m of the original target; routes through the CH-26 stack store; dual slot legality (companion weapon column OR rifle pool) filtered by CH-15.1.
+
+ch-38.id = CH-38
+ch-38.phase = 7 · Combat systems (v0.13.0)
+ch-38.title = Player armor coefficient + survival & ability mods (quick thinking · blink dash augment)
+ch-38.size = M
+ch-38.status = todo
+ch-38.deps = CH-25
+ch-38.files = player.js, specials.js, mods.js, assets.js
+ch-38.keywords = armor coefficient, quick thinking, energy protective layer, blink dash augment, stagger, melee multiplier, ehp
+ch-38.est.read.k = 16.8
+ch-38.est.out.k = 12.8
+ch-38.est.total.k = 29.6
+ch-38.note = born 2026-10-28 (worklog.9) · TWO documented keyword overrides (worklog.5 precedent): "armor" substring-hits CH-25 — overridden (CH-25 = ENEMY armor/damage core already at 39.8k; the PLAYER-side armor stat + survival mods route here, curve itself shared per ch-25.f3); "blink" substring-hits CH-31 (there = HP-bar blink styling) — overridden (movement ability augment ≠ HP-bar styling) · zip recon CONFIRMS: BLINK DASH exists (R2 special, blink cd 7 / dist 7 / maxDist 20, energy 20, specials.useDash → player.dash) so the augment layers on the live special, and the player ENERGY pool exists (energy.max 100, regen 14, spend()/canPay() + lastEnergyUse stamp — clean hooks for f1/f2); NO armor stat exists player-side yet (net-new in f1)
+ch-38.f1.id = CH-38.1
+ch-38.f1.status = todo
+ch-38.f1.text = PLAYER ARMOR COEFFICIENT (user 2026-10-28): wire the player armor stat onto the frame using the unified curve EHP = base health × (1 + armor/300) — 300 armor = +100% base health (200% total EHP) · 600 armor = +200% (300% total EHP) · 900 armor = +300% (400% total EHP); one assets.combat curve shared with enemy armor (CH-25.3); armor + total EHP surface in the CH-14 stat panel (base → modded) and any armor mod sources feed it.
+ch-38.f2.id = CH-38.2
+ch-38.f2.status = todo
+ch-38.f2.text = QUICK THINKING mod (user 2026-10-28): when health would hit 0, the ENERGY bar becomes a protective layer — lethal damage drains energy instead of killing, each energy point absorbing up to 2.4 damage at max rank (efficiency rank-scaled to 2.4×, tunable); death deferred while energy lasts; the protected pool STACKS WITH the armor coefficient (f1) — absorbed damage is also scaled by the armor EHP curve; HUD energy bar stays truthful under drain.
+ch-38.f3.id = CH-38.3
+ch-38.f3.status = todo
+ch-38.f3.text = BLINK DASH AUGMENT mod (ability augment, user 2026-10-28): the augmented blink dash TARGETS AN ENEMY under the reticle — blink range scales up to 4× base (rank-scaled against the existing blink dist 7 / maxDist 20), the player appears NEXT TO the target, the enemy is STAGGERED on arrival, and the blink lands a melee-damage hit of up to 5× normal melee damage at rank 10; augment card rides the CH-14.1 special/unique-trait slot.
+ch-38.f4.id = CH-38.4
+ch-38.f4.status = todo
+ch-38.f4.text = Tunables in assets (armor curve constants, QT efficiency per rank, blink range/stagger/melee multipliers) + regression: hover/glide/VATS energy economy (player.js spend paths) unaffected, no per-frame allocations, saves untouched, 39-check harness green.
+
+# ══ 08E. PHASE 8 — ENEMY & COMPANION AI (v0.14.0) ════════════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# born from the 2026-10-28 combat routing session (worklog.8) — weakpoints + the stealth/aggro pass
+# order: ch-30, ch-31 · ch-39 (worklog.9) · ch-41 (added 2026-10-28, worklog.18)
+ch-30.id = CH-30
+ch-30.phase = 8 · Enemy & companion AI (v0.14.0)
+ch-30.title = Enemy weakpoints (headshots + held-weapon shots)
+ch-30.size = M
+ch-30.status = todo
+ch-30.deps = CH-25
+ch-30.files = enemy.js, weapon.js, assets.js, hud.js
+ch-30.keywords = weakpoint, headshot, head, held weapon, hitbox, disarm
+ch-30.est.read.k = 20.7
+ch-30.est.out.k = 11.6
+ch-30.est.total.k = 32.3
+ch-30.f1.id = CH-30.1
+ch-30.f1.status = todo
+ch-30.f1.text = Weakpoint registration on enemy rigs: per-enemy-type weakpoint volumes (HEAD first, then archetype-specific) tabled in assets; hit tests in the CH-25 damage pipeline; weakpoint multiplier ASSUMPTION ×2 base, higher on elite/kaiju — confirm curve before coding.
+ch-30.f2.id = CH-30.2
+ch-30.f2.status = todo
+ch-30.f2.text = Shooting the HELD WEAPON: enemy guns are hittable sub-volumes — hits deal bonus damage and a chance to interrupt/jam their fire for a few seconds (ASSUMPTION: no permanent disarm — confirm).
+ch-30.f3.id = CH-30.3
+ch-30.f3.status = todo
+ch-30.f3.text = Feedback: headshot/weakpoint hit indicator + damage-number styling hook (CH-28), audio tick; weakpoint × crit multipliers stack per CH-25.
+ch-31.id = CH-31
+ch-31.phase = 8 · Enemy & companion AI (v0.14.0)
+ch-31.title = Companion threat detection + find-enemy sentinel mod · companion-damage HP bars · sentinel punch-through
+ch-31.size = M
+ch-31.status = todo
+ch-31.deps = none
+ch-31.files = enemy.js, companions.js, assets.js, mods.js, hud.js
+ch-31.keywords = threat, detection, aggro, stealth, companion, hold fire, find enemy, blink, sentinel, hp bar, punch through, punch thru
+ch-31.est.read.k = 21.3
+ch-31.est.out.k = 15.2
+ch-31.est.total.k = 36.5
+ch-31.note = f5/f6 added 2026-10-28 (worklog.19): companion-damage HP bars + sentinel weapon punch-through — keyword sweep (worklog.5 precedent): f5 strict winner was CH-28 ("hp"+"bar" = 2 hits vs CH-31 "companion" 1) overridden for scope — CH-28 owns floating/inline damage NUMBERS, not bar visibility rules; CH-31 has prior HP-bar art (f2 blink), owns the companion-damage attribution condition, and its files (enemy/companions/hud) cover the hook without out-of-scope touches; f6 was a 1-hit-each tie ("sentinel" CH-31/CH-39 · "weapon" CH-13 first-id) overridden for scope (bond mods = clone-spawning ≠ weapon stats; CH-13 = equipment menu); est re-keyed: read 21.3 unchanged, out 12.8 → 15.2, total 34.1 → 36.5 (GREEN ≤ 40k)
+ch-31.f1.id = CH-31.1
+ch-31.f1.status = todo
+ch-31.f1.text = Threat-detection rework (user: "reduce enemy's threat detection" + companions hold fire): enemies move through UNAWARE → INVESTIGATING → ENGAGED with longer detection timers and reduced sight/aggro ranges; companions (sentinel + beast) HOLD FIRE while no enemy is ENGAGED with the player; once an enemy engages, companions retaliate freely; pets still defend if directly attacked. ASSUMPTION: hold-fire also covers autonomous sentinel triggers — confirm before coding.
+ch-31.f2.id = CH-31.2
+ch-31.f2.status = todo
+ch-31.f2.text = FIND ENEMY sentinel mod (MOD·COMPANION column): any enemy transitioning to ENGAGED gets its HP bar BLINKING (≈2 s, white↔red) so the player sees who is starting combat; ac-meta-v3 mod card, drops through the companion pool band.
+ch-31.f3.id = CH-31.3
+ch-31.f3.status = todo
+ch-31.f3.text = Tunables in assets (per-zone detection ranges, timers, blink duration) + regression: reticle-designated drone, beast scavenge channel (CH-05) and FREEZE RAY unaffected by hold-fire once engaged.
+ch-31.f4.id = CH-31.4
+ch-31.f4.status = todo
+ch-31.f4.text = LOOSE RETICLE FOLLOW (user 2026-10-28): companions (sentinel + beast) follow the reticle point only LOOSELY — reticle position/direction BIASES their move target through damping + leash (assets tunables: follow strength, max offset, smoothing) instead of leading them instantly; exact designation interactions keep hard behavior (reticle-designated drone strikes, beast locker designation CH-05.2, FREEZE RAY targeting); combat targeting + CH-31.1 hold-fire rules unaffected.
+ch-31.f5.id = CH-31.5
+ch-31.f5.status = todo
+ch-31.f5.text = COMPANION-DAMAGE HP BARS (user 2026-10-28): while an enemy is taking damage FROM A COMPANION (sentinel or beast), its HP bar renders REGARDLESS of line of sight — visible even through walls (visibility holds ≈2 s after the last companion hit, timer tunable in assets) — the bar is a DOM overlay projected from the enemy anchor, so through-wall display is a visibility-flag change, not a new render pass (HD 3000 held); attribution = companion-sourced hits stamp the enemy's last-companion-damage timestamp; interplay: CH-31.2 find-enemy blink unaffected, CH-40.2 nameplate position unaffected, CH-28.2 hp-numbers toggle renders inside the same bar when enabled.
+ch-31.f6.id = CH-31.6
+ch-31.f6.status = todo
+ch-31.f6.text = SENTINEL WEAPON PUNCH-THROUGH (user 2026-10-28): sentinel weapons gain innate PUNCH-THROUGH of 2 m — shots pierce up to 2 m past the first target/obstacle (value tunable in assets, per-weapon override allowed); pierce continues through the CH-25 typed pipeline (same damage instance, per-target armor/crit rolls); CH-39 sentinel clones inherit automatically via the shared weapon table; beast companion unaffected; ASSUMPTION: innate punch applies only where the weapon/mod rows do not already define one — confirm interaction with existing punch-mod rows at patch time.
+
+ch-39.id = CH-39
+ch-39.phase = 8 · Enemy & companion AI (v0.14.0)
+ch-39.title = Companion bond mods (duplex bond · contagious bond)
+ch-39.size = M
+ch-39.status = todo
+ch-39.deps = CH-25, CH-26
+ch-39.files = companions.js, enemy.js, mods.js, assets.js, specials.js
+ch-39.keywords = duplex bond, contagious bond, bond, sentinel clone, companion kill, status spread, energy spent
+ch-39.est.read.k = 20.9
+ch-39.est.out.k = 9.6
+ch-39.est.total.k = 30.5
+ch-39.note = born 2026-10-28 (worklog.9) · keyword override (worklog.5 precedent): "sentinel/companion" substring-hits CH-31 (threat detection + find-enemy) — overridden for scope: bond mods = clone-spawning + status contagion, a dedicated companion-AI block; both cards live in the MOD·COMPANION column (CH-04.1) and drop through the companion pool band · zip recon: player.spend()/lastEnergyUse already stamp every energy payment — the duplex window hooks it directly
+ch-39.f1.id = CH-39.1
+ch-39.f1.status = todo
+ch-39.f1.text = DUPLEX BOND (sentinel mod, user 2026-10-28): track player energy spend on a rolling 30 s window — EVERY 300 spent spawns a CLONE of the currently equipped sentinel that roams and fights up to 90 m from the player; MAX 3 clones alive; each clone lives 30 s; clones reuse the sentinel mesh + weapon table (typed per CH-25) with simplified AI and a hard clone cap (mesh reuse, no per-frame allocations — HD 3000 budget).
+ch-39.f2.id = CH-39.2
+ch-39.f2.status = todo
+ch-39.f2.text = CONTAGIOUS BOND (companion mod, user 2026-10-28): when the COMPANION (sentinel or beast) kills an enemy, 50% of that enemy's current CH-26 status stacks (rounded, at least 1 per status type) apply to ALL enemies within 9 m of the killed target; spreads through the same stack store and renders icon + count on the new targets (CH-26.1).
+ch-39.f3.id = CH-39.3
+ch-39.f3.status = todo
+ch-39.f3.text = Tunables in assets (bond window + spend threshold, clone cap/lifetime/leash, contagion % + radius) + regression: companion hold-fire rules (CH-31.1), reticle-designated drone and beast scavenge (CH-05) unaffected; saves untouched.
+
+ch-41.id = CH-41
+ch-41.phase = 8 · Enemy & companion AI (v0.14.0)
+ch-41.title = Enemy combat maneuvering & loadouts (cover · shield play · strafing · precision stance · weapon variety · dash gating)
+ch-41.size = M
+ch-41.status = todo
+ch-41.deps = none
+ch-41.files = enemy.js, assets.js, weapon.js, world.js
+ch-41.keywords = cover, strafe, kneel, shield play, enemy weapons, weapon variety, dash, teleport, elite
+ch-41.est.read.k = 21.5
+ch-41.est.out.k = 13.6
+ch-41.est.total.k = 35.1
+ch-41.note = born 2026-10-28 (worklog.18) — SIX user requests grouped as one enemy-combat-behavior pass · NEW chunk per ai.new-chunk.rule: no open chunk owns enemy combat maneuvering (CH-30 = weakpoint anatomy, player→enemy; CH-31 = threat detection/perception) and forcing 6 features into CH-31 lands 41.3k YELLOW · keyword sweep (worklog.5 precedent): literal hits were 1-each scattered ties — "dash" CH-38 (player blink-dash AUGMENT ≠ enemy dash gating), "teleport" CH-12 (pause-menu navigation teleport ≠ enemy movement glitch), "weapon" CH-13/15/18/30 (equipment hub / stat wiring / flamethrower / held-weapon anatomy ≠ enemy loadout variety), "enemy" CH-31 ("find enemy" perception ≠ combat maneuvering), "elite" only on done CH-05 (never routed) — all overridden for scope · cover points reuse existing world/prop + container collision data (no nav-mesh, throttled re-evaluation, no per-frame allocations — HD 3000 held) · INTERPLAY: detection/aggro timers stay CH-31.1; kneel stance tightens spread → feeds CH-30 weakpoint play; shield smarts reads existing enemy shield defs, no new shield system; f6 elite gate interacts with existing elite kits
+ch-41.f1.id = CH-41.1
+ch-41.f1.status = todo
+ch-41.f1.text = ACTIVE COVER (user 2026-10-28): enemies actively USE cover in combat — seek the nearest valid cover point (scored from existing prop/container/world collision data), keep it between themselves and the player, lean/peek out to fire, and reposition when their cover is destroyed or flanked; per-archetype cover-seeking frequency + reposition triggers tunable in assets; cover re-evaluation throttled (no per-frame allocations).
+ch-41.f2.id = CH-41.2
+ch-41.f2.status = todo
+ch-41.f2.text = SHIELD SMARTS (user 2026-10-28): shielded enemies play their shields — keep the shield facing the threat, break line of sight when it breaks (retreat to cover per f1) to let it recharge, re-engage once restored; reads the EXISTING enemy shield stats (no new shield system); CH-25 typed shield-gap pressure (e.g. magnetic) works unchanged against smarter play.
+ch-41.f3.id = CH-41.3
+ch-41.f3.status = todo
+ch-41.f3.text = OPEN-FIELD STRAFE (user 2026-10-28): enemies caught in empty space (no cover in reach) strafe FAST between fire bursts — lateral dodge-jinks at dash-tier speed with a telegraphed cadence (rate/distance/burst-alignment tunables in assets) so fights stay readable on HD 3000.
+ch-41.f4.id = CH-41.4
+ch-41.f4.status = todo
+ch-41.f4.text = TAKE-A-KNEE PRECISION (user 2026-10-28): precision archetypes TAKE A KNEE before accuracy-critical shots — brief telegraphed wind-up, tighter spread while kneeling (feeds CH-30 weakpoint/headshot play), reduced mobility while down, stance cancels on flank/damage; which archetypes kneel + wind-up times tunable in assets.
+ch-41.f5.id = CH-41.5
+ch-41.f5.status = todo
+ch-41.f5.text = ENEMY WEAPON VARIETY (user 2026-10-28): enemy squads draw from a per-zone WEAPON TABLE in assets instead of a uniform gun — mixed loadouts per squad (existing weapon archetypes/visuals reused where possible, typed per CH-25 where they carry types); table keyed per zone + elite band, tunable; no new weapon models required.
+ch-41.f6.id = CH-41.6
+ch-41.f6.status = todo
+ch-41.f6.text = DASH GATED TO ELITES + TELEPORT FIX (user 2026-10-28): the enemy dash/blink-step is GATED to elite archetypes (assets gate per archetype band); the "too many enemies teleporting around" report is root-caused as the dash ability misfiring on regular enemies — movement fixed to continuous interpolation, never snap-teleport; elite dash keeps a clear telegraph (wind-up + trail) with a cooldown tunable in assets.
+
+# ══ 08F. PHASE 9 — ARSENAL EXPANSION (v0.15.0) ═══════════════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# born from the 2026-10-28 combat routing session (worklog.8) — GATED by the user: statuses (CH-26)
+# land before ANY new weapon; every chunk here deps CH-25 + CH-26 (heavy platform chain via CH-32)
+# order: ch-32, ch-33, ch-34, ch-35
+ch-32.id = CH-32
+ch-32.phase = 9 · Arsenal expansion (v0.15.0)
+ch-32.title = Explosive chain gun (archgun) + heavy weapon platform
+ch-32.size = M
+ch-32.status = todo
+ch-32.deps = CH-25, CH-26
+ch-32.files = weapon.js, assets.js, textures.js, audio.js, hud.js, enemy.js
+ch-32.keywords = chain gun, chaingun, archgun, larkspur, explosive, heavy, cannon, ammo
+ch-32.est.read.k = 25.2
+ch-32.est.out.k = 11.6
+ch-32.est.total.k = 36.8
+ch-32.f1.id = CH-32.1
+ch-32.f1.status = todo
+ch-32.f1.text = New HEAVY weapon EXPLOSIVE CHAIN GUN (Warframe-archgun feel, Larkspur-like): spin-up rotary auto cannon firing explosive rounds (direct hit + AoE splash, typed per CH-25), heavy ammo consumption, spin-up/down feel per assets tunables.
+ch-32.f2.id = CH-32.2
+ch-32.f2.status = todo
+ch-32.f2.text = HEAVY weapon platform: shared HEAVY ammo type (user-confirmed 2026-10-28 — one pool for all five heavies, scavenged like other ammo types), heavy slot in equipment, unlock via the v0.7 ammo-scavenge flow, XMB weapon card, HUD ammo readout, sell/scrap values.
+ch-32.f3.id = CH-32.3
+ch-32.f3.status = todo
+ch-32.f3.text = VFX/SFX inside the HD 3000 budget: spin-up/roar loops, capped explosion particles + zone-culled lights, no per-frame allocations.
+ch-33.id = CH-33
+ch-33.phase = 9 · Arsenal expansion (v0.15.0)
+ch-33.title = Heavy sniper + heavy machine gun
+ch-33.size = M
+ch-33.status = todo
+ch-33.deps = CH-32
+ch-33.files = weapon.js, assets.js, textures.js, audio.js, hud.js
+ch-33.keywords = heavy sniper, heavy machine gun, hmg, heavy, belt
+ch-33.est.read.k = 21.6
+ch-33.est.out.k = 11.6
+ch-33.est.total.k = 33.2
+ch-33.f1.id = CH-33.1
+ch-33.f1.status = todo
+ch-33.f1.text = HEAVY SNIPER: slow, massive per-shot precision heavy; rides the CH-27 SCOPE mod; weakpoint synergy with CH-30; feeds HEAVY ammo.
+ch-33.f2.id = CH-33.2
+ch-33.f2.status = todo
+ch-33.f2.text = HEAVY MACHINE GUN: sustained belt-fed auto heavy with an escalating spin/heat feel; feeds HEAVY ammo; typed damage per CH-25.
+ch-33.f3.id = CH-33.3
+ch-33.f3.status = todo
+ch-33.f3.text = Shared heavy plumbing: per-weapon tables in assets, unlock-flow entries, XMB cards + HUD + sell/scrap; both weapons respect the CH-29 level bands.
+ch-34.id = CH-34
+ch-34.phase = 9 · Arsenal expansion (v0.15.0)
+ch-34.title = Heavy flamer + heavy syphon
+ch-34.size = M
+ch-34.status = todo
+ch-34.deps = CH-32, CH-26
+ch-34.files = weapon.js, assets.js, textures.js, audio.js, hud.js, enemy.js
+ch-34.keywords = heavy flamer, heavy syphon, siphon, beam, cone, heavy
+ch-34.est.read.k = 25.2
+ch-34.est.out.k = 11.6
+ch-34.est.total.k = 36.8
+ch-34.f1.id = CH-34.1
+ch-34.f1.status = todo
+ch-34.f1.text = HEAVY FLAMER: wide short-range cone heavy feeding HEAVY ammo; direct burn + HEAT status procs through the CH-26 stack system; shares the CH-18 flamethrower tech (CH-18 stays the personal pistol-ammo version — cross-ref ch-18.note).
+ch-34.f2.id = CH-34.2
+ch-34.f2.status = todo
+ch-34.f2.text = HEAVY SYPHON: continuous beam heavy that siphons its target — drains shields/energy and refills the player (ASSUMPTION: drains enemy shields → restores player shields/energy — confirm exact curve before coding; scaled-up FREEZE RAY siphon tech).
+ch-34.f3.id = CH-34.3
+ch-34.f3.status = todo
+ch-34.f3.text = Tunables + audio (flame roar loop, siphon whine) + budget guards (zone-culled emitters, capped particles).
+ch-35.id = CH-35
+ch-35.phase = 9 · Arsenal expansion (v0.15.0)
+ch-35.title = Pistols: machine pistols ("oozi") + dual wield
+ch-35.size = M
+ch-35.status = todo
+ch-35.deps = CH-25, CH-26
+ch-35.files = weapon.js, assets.js, hud.js, audio.js, input.js
+ch-35.keywords = pistol, oozi, machine pistol, dual wield, akimbo, twin
+ch-35.est.read.k = 19.8
+ch-35.est.out.k = 11.6
+ch-35.est.total.k = 31.4
+ch-35.note = keyword override: the "pistol" substring hit CH-18 (ammo-feed keyword) — overridden for scope; weapon-archetype additions route here (worklog.5 precedent)
+ch-35.f1.id = CH-35.1
+ch-35.f1.status = todo
+ch-35.f1.text = New pistol archetypes (user: "more pistol options like the oozi"): OOZI-style machine pistol (fast full-auto, low per-shot damage, wide spread — working title, rename freely) + one more (ASSUMPTION: burst pocket-pistol — confirm which second archetype); both ride the pistol drop band, typed per CH-25.
+ch-35.f2.id = CH-35.2
+ch-35.f2.status = todo
+ch-35.f2.text = DUAL WIELD for pistols: equip two copies of the same pistol akimbo-style — doubled mag/fire with a shared reload, recoil/spread penalty, alternating left/right muzzle flash; toggled in EQUIPMENT; HUD ammo reflects the combined mag.
+ch-35.f3.id = CH-35.3
+ch-35.f3.status = todo
+ch-35.f3.text = Tunables + audio + XMB cards + sell/scrap values; both respect the CH-29 gear bands; regression: pistol-ammo economy with the CH-18 flamethrower unchanged.
+
+# ══ 08G. PHASE 10 — HUD & PRESENTATION (v0.16.0) ═════════════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# born from the 2026-10-28 HUD/world routing session (worklog.15) — in-game HUD declutter requests
+# grouped into ONE presentation pass · deliberately NOT folded into phase 4 (pause menu & mod UI is
+# menu scope; these are game-window scope) · competes for plan.next in GLOBAL id order (user.sort)
+# order: ch-40
+ch-40.id = CH-40
+ch-40.phase = 10 · HUD & presentation (v0.16.0)
+ch-40.title = HUD declutter & presentation pass (banners · nameplates · loot log · controller badge · reticle · reload prompt · reticle dot + color states)
+ch-40.size = M
+ch-40.status = todo
+ch-40.deps = none
+ch-40.files = hud.js, hud.css, assets.js, weapon.js
+ch-40.keywords = banner, loot log, loot, controller, enemy name, nameplate, reticle, footnote, hud, reload, auto reload, prompt, crosshair, reticle color, narrow, restyle
+ch-40.est.read.k = 19.8
+ch-40.est.out.k = 16
+ch-40.est.total.k = 35.8
+ch-40.note = born 2026-10-28 (worklog.15) — FIVE user requests grouped as one HUD-declutter pass · keyword overrides documented (worklog.5 precedent): f1 "duplicate" substring-hit CH-16 (mod bench ≠ pickup banner), f2 "status"/"bar" tie-hit CH-26/CH-28 (both combat-system scope, CH-26 already at 39.2k), f5 "locker" substring-hit CH-10 (placement pass ≠ reticle notifications) — all overridden for scope; f3/f4 had no open-chunk hit · DOM-only changes through an assets.hud tunables block, HD 3000 budget held (no new render targets, no per-frame allocations) · INTERPLAY: f2 name-above-status-row ordering holds even before CH-26.1 ships (name sits directly above the bar until the status row exists); f5 footnote renders at the f3 loot-log position; the CH-05.2 "BEAST ONLY — point reticle" prompt moves into the f5 footnote · f6 added 2026-10-28 (worklog.16): auto reload + reload-prompt declutter joined per the user's own "also annoying" framing — literal keyword hits ("weapon" CH-13/15/18 · "toggle" CH-28 · "icon" CH-26) were all 1-hit ties overridden for scope; settings surfacing follows the CH-28.3 pattern (meta-save persisted, OPTIONS via CH-12.1) · f7 added 2026-10-28 (worklog.17): reticle X → dot + aggro color states — keyword sweep: CH-40 "reticle"+"enemy [name]" vs CH-31 "aggro"+"enemy [find enemy]" = 2-2 tie; strict first-id tie-break would route to the threat-AI chunk, overridden for scope per worklog.5 precedent (rendering ≠ threat behavior; state read-side only); "dot" substring-hit CH-26 (damage-over-time ≠ dot shape) overridden; no literal "color" keyword hit anywhere — CH-13.f3 tints companion/weapon materials, a different surface (phase 4 menu scope ≠ phase 10 game-window scope) · f8 added 2026-10-28 (worklog.21): MODERN NARROW HUD RESTYLE — the user's reference image defines the design language (thin rules, small caps, corner clusters, translucency, single accent color); "hud" keyword 1-1 tie vs CH-28 overridden for scope (CH-28's "hud" = its hp-numbers toggle surface; CH-40 is the dedicated HUD presentation chunk); reference-only elements (4-player squad list, chat panel, NPC dialog) flagged ASSUMPTION in-text; est re-keyed: read 19.8 unchanged, out 14.8 → 16.0, total 34.6 → 35.8 (GREEN ≤ 40k)
+ch-40.f1.id = CH-40.1
+ch-40.f1.status = todo
+ch-40.f1.text = NO BANNER FOR DUPLICATES (user 2026-10-28): the top pickup banner fires only when a mod card is NEW to the collection — duplicate copies (id already owned) show NO top banner; duplicates still enter the inventory and the received-loot log as normal (CH-03 card model + acquireCard untouched — new-vs-dupe read from existing ownership state).
+ch-40.f2.id = CH-40.2
+ch-40.f2.status = todo
+ch-40.f2.text = ENEMY NAMEPLATES (user 2026-10-28): enemy names move OFF the reticle and render ABOVE the enemy health bar's status-effect row — final order top→bottom: NAME · status icons+counts (CH-26.1 row) · health bar; until CH-26.1 ships the name sits directly above the bar (same anchor, no reflow later); distance fade/scale follows the existing bar behavior; reticle keeps only what f5 leaves behind.
+ch-40.f3.id = CH-40.3
+ch-40.f3.status = todo
+ch-40.f3.text = LOOT LOG POSITION (user 2026-10-28): the received-loot log moves MUCH further toward the bottom of the game window (anchored near the bottom edge); offset tunable in assets.hud; f5's footnote renders directly under it.
+ch-40.f4.id = CH-40.4
+ch-40.f4.status = todo
+ch-40.f4.text = CONTROLLER BADGE REMOVED (user 2026-10-28): the controller-type indicator in the bottom-left of the in-game window is removed outright; controller input stays fully functional and context prompts (X HARVEST etc.) are unaffected.
+ch-40.f5.id = CH-40.5
+ch-40.f5.status = todo
+ch-40.f5.text = RETICLE NOTIFICATION DECLUTTER (user 2026-10-28): remove the redundant reticle-attached notifications about lockers and enemies (designation/BEAST ONLY prompts, enemy name callouts per f2); the persistent reticle context collapses into ONE small single-line FOOTNOTE at the bottom of the screen, directly under the received-loot log (f3 position) — e.g. compact locker designation state; action prompts that need an immediate keypress keep their existing UI.
+ch-40.f6.id = CH-40.6
+ch-40.f6.status = todo
+ch-40.f6.text = AUTO RELOAD ON EMPTY + RELOAD PROMPT DECLUTTER (user 2026-10-28): the repeated center-screen "PRESS R TO RELOAD" prompt is REMOVED — with the new AUTO RELOAD toggle ON (DEFAULT: settings/OPTIONS entry per CH-12.1, persisted in the meta save, default ON when the key is absent — idempotent, no migration) an empty mag auto-reloads through the normal reload path (timing/sound/cancel rules unchanged, respects ammo reserves); with the toggle OFF the empty state instead FLASHES THE WEAPON ICON on the right side of the HUD (pulse until reload, assets.hud tunables: rate/intensity); manual R reload always still works; other keypress prompts (X HARVEST, confirm dialogs) unaffected.
+ch-40.f7.id = CH-40.7
+ch-40.f7.status = todo
+ch-40.f7.text = RETICLE SHAPE + AGGRO COLOR STATES (user 2026-10-28): the reticle changes from an X to a DOT — a small centered dot (shape/size tunable in assets.hud; any spread/bloom feedback the X carried re-expresses as subtle dot scale, no per-frame allocations) whose COLOR is target-state driven: WHITE by default (no valid target), GREEN over friendlies (companions/pets) and interactable items (lockers, harvest nodes, pickups), ORANGE over enemies that have NOT aggro'd (unaware), RED over AGGRO'D enemies (aware/attacking) — pure READ-side of existing state (companion roster for friendly checks, enemy threat/aggro state, the interaction candidate the prompt system already resolves) — NO AI behavior change, CH-31 stays the state owner; color transitions ease via assets.hud tunables; HD 3000 budget held (DOM-only class swap, no new render targets, no per-frame allocations); interplay: f2 keeps enemy names off the reticle, f5 footnote and f6 reload prompt unaffected.
+ch-40.f8.id = CH-40.8
+ch-40.f8.status = todo
+ch-40.f8.text = MODERN NARROW HUD RESTYLE (user 2026-10-28, reference image): restyle the whole game-window HUD to the reference's narrow modern language — THIN 1px separator rules, SMALL-CAPS labels, generous transparency, muted white/teal palette with ONE accent color (orange) for fire-mode/key numbers, everything corner-anchored in compact clusters; cluster map: TOP-RIGHT wallet readout + player identity row (name + rank chip + short hp bar) + COMPANION ROSTER column (per-companion: name, thin hp ring, status icons — reads CH-31 companion state, the reference's 4-player squad list collapses to companions); LEFT-MID objective stack (dim context lines + bright active objective with icon); RIGHT-MID NPC dialog portrait card (rounded rect, right-aligned name, subtitle line) for companion/home-base dialog (CH-36 interplay); BOTTOM-RIGHT ammo cluster (big current/reserve numbers, weapon name + rank chip + fire-mode in accent, thin vertical magazine bar) + 4-slot ability arc (keys 1-4, circular icons); BOTTOM-LEFT log/chat panel styling follows f3's loot-log anchor — ASSUMPTION (reference-only, confirm at patch time): no multiplayer chat is added, wallet renders only with its assets.hud toggle on; DOM-only through assets.hud tunables, HD 3000 budget held (no new render targets, no per-frame allocations); f1-f7 surfaces adopt the same language.
+
+# ══ 08H. PHASE 11 — BEAUTY & PRESENTATION (v0.17.0) ══════════════════════════
+# one block per chunk · status: done | todo · blocked = a dep is not done · ids never renumber
+# born from the 2026-10-28 image-reference routing session (worklog.21) — the user's five beauty-goal
+# reference images (slim character · ADS third person · narrow HUD · login screen · special pause menu)
+# routed: 3 into existing chunks (ch-22.f3 · ch-40.f8 · ch-11.f5), 2 became new chunks here
+# (no open-chunk owner — ai.new-chunk.rule) · competes for plan.next in GLOBAL id order (user.sort)
+# order: ch-42, ch-43
+ch-42.id = CH-42
+ch-42.phase = 11 · Beauty & presentation (v0.17.0)
+ch-42.title = Slim character (player rig proportions + material finish)
+ch-42.size = M
+ch-42.status = todo
+ch-42.deps = none
+ch-42.files = player.js, textures.js, assets.js
+ch-42.keywords = slim, character model, rig, proportions, silhouette, player appearance, surfaces, character animation, natural
+ch-42.est.read.k = 10.8
+ch-42.est.out.k = 7
+ch-42.est.total.k = 17.8
+ch-42.note = born 2026-10-28 (worklog.21): the user's "beautiful slim character" reference image — keyword sweep: "character" hits only CH-11 (pause-menu bust display) and "frame" hits CH-13/CH-15 (equipment menu / stat lists), all menu-scope ≠ player-model mesh work → overridden for scope, ai.new-chunk.rule (CH-41 precedent: no open chunk owns the category) · interplay: CH-22.f3 ADS shows the rig over-the-shoulder (slimmer silhouette reads better there), CH-13.f3 tint hooks cover companion materials — f2 wires the PLAYER into the same palette approach · est: files player/textures/assets = (15799+22099+44406)/7600 → read 10.8, out 2.2 base + 1.2×2 = 4.6, total 15.4 (GREEN ≤ 40k) · f3/f4 added 2026-10-28 (worklog.22): NATURALNESS BARS (surfaces + animation) — keyword sweep: no literal hit on any open chunk ("character design" ≠ the "character model" keyword; bare "character" hits CH-11's pause-bust scope; "animation"/"surface"/"natural" hit nothing) — routed by the user's own referent ("when the 3d character design comes out" names THIS chunk's deliverable) + scope ownership (worklog.5 precedent) · f4 amends f1's "no new animations" clause (same skeleton, naturalness polish only — no new bones still holds); est re-keyed: read 10.8 unchanged (same three files), out 4.6 → 7.0, total 15.4 → 17.8 (GREEN ≤ 40k)
+ch-42.f1.id = CH-42.1
+ch-42.f1.status = todo
+ch-42.f1.text = SLIM RIG PROPORTIONS (user 2026-10-28, reference image): rebuild the player frame's proportions toward the reference's elegant slim silhouette — narrow waist, slender limbs, form-fitting outline (no bulky armor slabs); implemented as a proportion/rescale pass over the existing procedural rig (torso/head anchors already exist, v1.4 zip recon) — limb radii, shoulder/waist ratios, neck length all tunable in assets; silhouette reads clean in third person AND in the CH-22.f3 over-the-shoulder ADS view; no new bones, no new animations (existing locomotion/aim poses re-target automatically), HD 3000 budget held (same vertex budget, no per-frame cost).
+ch-42.f2.id = CH-42.2
+ch-42.f2.status = todo
+ch-42.f2.text = MATERIAL FINISH (user 2026-10-28, reference image): skin the slim rig per the reference — white base armor plates, teal secondary accents, a single red shoulder accent, dark rounded helmet with an accent stripe; implemented with the existing procedural texture pipeline (textures.js, no new atlases); accent channels follow the CH-13.f3 color-customization approach (fixed swatch palette, tint hooks) so future player-appearance options plug into the same system; colors tunable in assets; nothing new persisted (player cosmetics ride the existing meta save once CH-13.f3 lands).
+ch-42.f3.id = CH-42.3
+ch-42.f3.status = todo
+ch-42.f3.text = SURFACE NATURALNESS BAR (user 2026-10-28: "when the 3d character design comes out, i want to make sure that surfaces and animations are as natural as they can be"): the rig's SURFACES must read natural, not plastic — matte/gloss balance per material family (armor plates slightly specular, joint/fabric gaps matte), subtle roughness/albedo breakup so large plates never read flat (procedural noise + panel variation in textures.js, no new atlases), believable ambient/hemisphere response from the scene lights only (no per-pixel hooks, no new render targets, HD 3000 held), accent zones BLEND instead of hard banding; all thresholds tunable in assets; this bar is the acceptance test for f1+f2 at CH-42 execution time — the quality lands WITH the character, not as a follow-up pass; interplay: the CH-43.f1 login portrait showcases the same rig and inherits this finish.
+ch-42.f4.id = CH-42.4
+ch-42.f4.status = todo
+ch-42.f4.text = ANIMATION NATURALNESS BAR (user 2026-10-28, same request): the rig's MOTION must read natural — blended start/stop on locomotion (no instant velocity snaps), weight-shifted idle (breathing sway, micro-adjustments, weapon-ready stance), eased transitions between idle/run/aim/jump states, no foot-sliding on ground moves, aim poses that track smoothly into the CH-22.3 over-the-shoulder ADS; implemented on the EXISTING skeleton (f1's no-new-bones holds — this AMENDS f1's "no new animations" clause: naturalness polish, not a re-animation), procedural pose blending in the player.js update (no per-frame allocations, HD 3000 held); blend weights/durations tunable in assets; pairs with f3 as the naturalness acceptance bar for the whole character pass.
+ch-43.id = CH-43
+ch-43.phase = 11 · Beauty & presentation (v0.17.0)
+ch-43.title = Intricate login / title screen
+ch-43.size = M
+ch-43.status = todo
+ch-43.deps = none
+ch-43.files = index.html, hud.css, main.js, textures.js
+ch-43.keywords = login, title screen, login screen, sign up, boot
+ch-43.est.read.k = 10.8
+ch-43.est.out.k = 4.4
+ch-43.est.total.k = 15.2
+ch-43.note = born 2026-10-28 (worklog.21): the user's "intricate login screen" reference image — keyword sweep found ZERO hits ("login"/"title"/"sign up" nowhere; "screen" only inside CH-36's "loading screen" = extraction loading ≠ pre-game title, scope mismatch) → ai.new-chunk.rule · ASSUMPTION pinned in-text: no server/auth exists (static host) — the form is a local profile ritual, not an account system · interplay: ornate portrait frame + starfield art reuse the CH-36.f1 procedural-canvas approach; profile identity persists in the ac-meta-v3 meta save · est: files index/hud-css/main/textures = (7010+21069+31851+22099)/7600 → read 10.8, out 2.0 base + 1.2×2 = 4.4, total 15.2 (GREEN ≤ 40k) · 2026-10-28 (worklog.23): CH-11.f6 binds EVERY opaque menu surface — incl. THIS title/login screen — to the VITRUVIAN token set (midnight-indigo bg, antique-gold ornament, cream text): f1's starfield + arched gold portrait frame survive INSIDE that palette (the constellation layer sits on the indigo bg; the frame takes the gold tokens); layout/form/flow unchanged; soft dep — CH-43 may run before CH-11 (deps none), implement the f6 token values straight from the flat spec (no code dep); confirm the blend at patch time
+ch-43.f1.id = CH-43.1
+ch-43.f1.status = todo
+ch-43.f1.text = TITLE & LOGIN SCREEN (user 2026-10-28, reference image): a full-screen pre-game login surface per the reference — dark starfield background with faint constellation lines, an ornate ARCHED GOLD PORTRAIT FRAME center-left (procedural canvas art, CH-36.f1 approach) showcasing the character in a seated pose, game logo + expansion-style subtitle to its right, then the form stack: EMAIL field, PASSWORD field, LOGIN button (text chip), footer chips FORGOT PASSWORD · SIGN UP · EXIT GAME, and a build/timestamp stamp bottom-left; ASSUMPTION (no server, static host): EMAIL/PASSWORD are VISUAL FIELDS — LOGIN enters the game with the email local-part (or a typed profile name) as the profile identity; FORGOT PASSWORD/SIGN UP render inert ("offline build" tooltip) or are omitted — confirm at patch time; DOM + CSS + one portrait canvas, HD 3000 trivial.
+ch-43.f2.id = CH-43.2
+ch-43.f2.status = todo
+ch-43.f2.text = BOOT FLOW INTEGRATION: the title screen is the first thing a fresh load shows — LOGIN proceeds to spawn (existing boot path unchanged), EXIT GAME closes the tab; profile identity persists in the ac-meta-v3 meta save (idempotent, no migration — new optional field defaults when absent); returning players land on the same screen with the profile pre-filled and a single LOGIN press to continue; Esc on the title does nothing (no menu behind it); the CH-36.f1 extraction loading screen keeps its own surface (title ≠ loading).
+
+# ══ 09. INBOX — UNSORTED REQUESTS ═════════════════════════════════════════════
+inbox.count = 0
+inbox.rule = unsorted requests land here one line each (inbox.N.id · inbox.N.date · inbox.N.text · inbox.N.status) until ai.routing.rule files them into a chunk block — ids stay stable after the move, the section itself never goes away
+
+# ══ 10. PARKED — NOT REQUESTED, NOT SCHEDULED ═════════════════════════════════
+park.id = PARK
+park.rule = parked ideas are NOT requested and NOT scheduled — ai.routing.rule never routes here · promoting one into a chunk is a manual user decision (then it gets a fresh CH-NN id)
+park.f1.id = PARK.1
+park.f1.status = idea
+park.f1.text = Transmute (4 mods → 1 random, visible in the mod bench reference) — only if you want it.
+
+# ══ 11. SHIPPED HISTORY — FROZEN ══════════════════════════════════════════════
+# one block per released version · edit nothing here — README.md carries the prose versions
+h080.id = H080
+h080.version = v0.8.0 · The Expanse
+h080.f1.text = 13 procedural tile sets + 4× ocean
+h080.f2.text = Harvest nodes, ore, fish/rod, birds, rodents
+h080.f3.text = 120-min day/night, L10→L80 hostiles, 15-s neighbour reinforcement
+h080.f4.text = Elite ability kits (knockdown, STEADY FEET mod), L80 kaiju
+h080.f5.text = Cloak, overshield, blood-for-shield, weapon stow, nikana
+h080.f6.text = Weapon & salvage selling, level-scaled drop curve
+h070.id = H070
+h070.version = v0.7.0 · Cityscape
+h070.f1.text = Locked weapons unlock via ammo scavenging
+h070.f2.text = Reticle-designated drone, city + extraction beacon
+h070.f3.text = Zone enemy levels, breakable supply boxes, ammo conversion
+h070.f4.text = New kill drops (credits/power), pickup feed, darker interiors
+h060.id = H060
+h060.version = v0.6.0 · Mods & companions
+h060.f1.text = ADS without scopes, free double jump + JETPACK mod
+h060.f2.text = POWER currency, CR+PW mod ranks, 60% scrap refund
+h060.f3.text = 4 R2 special slots, drone + zanuka beast, 5-min respawns
+h060.f4.text = The Valley canyon + new mod nodes (magnet, radar, hull/shields)
+
+# ══ 12. WORKLOG — APPEND-ONLY PATCH HISTORY ═══════════════════════════════════
+# one entry per executed chunk · append the next worklog.N keys · never edit or delete old entries
+worklog.0.date = 2026-10-28
+worklog.0.event = framescape.flat.txt v1 created — full transcription of framescape_updates.html planner seed · CH-01 + CH-02 marked done after marker verification against frame-scape-v0.8.0-ch02-patched.zip (/* CH-01.1-3 */ in input.js+hud.js, /* CH-02.1-3 */ in assets.js+specials.js)
+worklog.1.chunk = CH-01
+worklog.1.title = Controller X harvest + confirm dialogs
+worklog.1.status = done · shipped before 2026-10-28 (backfilled at flat-file conversion)
+worklog.1.summary = Controller X (btn 2) = context interact with press-consume so X never double-fires reload · generic confirm dialog in hud.js (A/Enter ok · B/Esc cancel · default focus Cancel · shows CR/PW refund or sale value) · wired into mod scrap + weapon sell + salvage/material sell
+worklog.1.markers = input.js CH-01.1 raw pad edges + press-consume · hud.js CH-01.2 generic confirm dialog + CH-01.3 wiring (weapon SELL confirmed first)
+worklog.1.files = input.js, assets.js, ecology.js, weapon.js, hud.js
+worklog.2.chunk = CH-02
+worklog.2.title = Enemy item-drop pool re-weight
+worklog.2.status = done · shipped 2026-10-27 (frame-scape-v0.8.0-ch02-patched.zip)
+worklog.2.summary = drops.itemPool weights: pistol+shotgun 80 · rifle 5 · frame 5 · beast/sentinel 5 · launcher 5 · every mod node + weapon tagged with a pool category, one pickWeightedKey() roll normalised over the weights · AC.game.drops.sim(10000) console verifier
+worklog.2.markers = assets.js CH-02.1 itemPool table + CH-02.2 pool tags · specials.js CH-02.2 weighted rolls (nodes + locked guns) + CH-02.3 sim API
+worklog.3.date = 2026-10-28
+worklog.3.event = bridge-file revision FLAT v1.1 — added ai.deliverable (every patch ships next game-zip iteration + this file), ai.interrupt.rule (mid-run user requests registered immediately), ai.projection.rule + ai.new-chunk.rule (projected tasks split into logical chunk blocks) · no plan data changed, statuses untouched
+worklog.4.date = 2026-10-28
+worklog.4.chunk = CH-03
+worklog.4.title = Mod card inventory + duplicate sell/scrap
+worklog.4.status = done · shipped 2026-10-28 (frame-scape-v0.8.1-ch03-patched.zip) · phase 1 complete → v0.8.1 landed
+worklog.4.summary = cards {id, copies, rank} replace buy-a-rank nodes — chips, crate drops, elite drops and kaiju copies all feed Mods.acquireCard() (first copy = new card at R0, duplicates accumulate as inventory; the v0.8 maxed auto-sale is retired, duplicateSale = 40000 CR tunable in assets) · save migration ac-meta-v2 → v3 in mods.js: every ranked node becomes ONE owned card at the same rank, no refunds, no lost power, idempotent (v3 written back on first load; v1 ladder kept) — verified TWICE with a 36-check Node harness driving the real module (scripts/test_ch03.mjs) · API: sellCard (last copy protected), scrapCard (existing 60% rank refund, card + copies kept), sellDuplicates(id)/scrapDuplicates(id) = all copies but one + global variants (no id), counters totalCards/totalDuplicates · interim XMB column MOD · DUPES (counters row, SELL/SCRAP ALL DUPLICATES, per-mod rows; A = sell · X/Y = scrap; everything behind the CH-01 confirm dialog) · rank-ups now require an OWNED card — interim XMB fusion until the CH-16 mod bench · STATED DECISIONS: new cards start at rank 0 (chips no longer grant free power) · scrapDuplicates pays 60% of sale value via the same scrapRefund constant · legacy maxedRefund key kept in assets (unused, documented) · unowned mods show NO CARD in the XMB and refuse buy with a hint toast
+worklog.4.markers = mods.js CH-03.1 (card model + accessors + acquireCard + card-gated buy) · CH-03.2 (META_KEY ac-meta-v3 + migration ladder _ranksToCards/_adoptCards) · CH-03.3 (duplicate economy + counters) · assets.js CH-03.1 (duplicateSale tunable) · specials.js CH-03.1 (chip grant path) · hud.js CH-03.1 (card sub-labels + unowned toast) · CH-03.4 (dupesCol + confirmDupe + X/Y scrap branch)
+worklog.4.files = mods.js, assets.js, specials.js, hud.js, README.md
+worklog.5.date = 2026-10-28
+worklog.5.event = ROUTING SESSION (no code shipped) — 8 user requests registered per ai.routing.rule + ai.new-chunk.rule, nothing lost, nothing parked: sentinel FREEZE RAY → ch-04.f4 (keyword "sentinel" = only hit, rule-followed; ch-04.files widened + audio/enemy, est.total 31.9k green) · FLAMETHROWER → CH-18 · ORBITAL STRIKE → CH-19 · double-jump feel pass → CH-20 · vast biome expanse → CH-21 · third-person view → CH-22 (user's own precondition, registered per register-never-remember, ASSUMPTION-marked) · ANTHEM FLIGHT → CH-23 (deps CH-21+CH-22 per "after third person + enough things on the map") · MINECRAFT mountain/forest regions → CH-24 (deps CH-21+CH-22) · cityscape valley ring → ch-09.f3 · new phase blocks: §08B phase 5 Arsenal & movement feel v0.11.0 (CH-18/19/20) + §08C phase 6 Open world & flight v0.12.0 (CH-21…24) — biome expanse grouped with flight per the user's "eventually", deliberately NOT added to phase 3 so v0.9.0 stays ungated · TWO documented keyword-heuristic overrides: valley-ring request tie-broke to CH-08 by id order but moved to CH-09 for scope (corridor connectors ≠ valley tiles); double-jump request hit CH-11 only via the word "warframe" but moved to CH-20 for scope (pause-menu shell ≠ movement tuning) · plan.next UNCHANGED = CH-04 (id order governs; new chunks queue after phase 4 unless manually promoted via user.sort) · denominator 41 → 59 feature lines, meta bumped to FLAT v1.2
+worklog.6.date = 2026-10-28
+worklog.6.chunk = CH-04
+worklog.6.title = Companion mod sets (sentinel / beast)
+worklog.6.status = done · shipped 2026-10-28 (frame-scape-v0.8.1-ch04-patched.zip) · phase 2 half done, v0.8.2 NOT landed (CH-05 open) · verified by a 39-check Node harness (scripts/test_ch04.mjs) driving the real mods.js + assets.js modules
+worklog.6.summary = CH-04.1 — two new XMB columns MOD·COMPANION + MOD·COMPANION WEAPON; every companion node carries a type tag (⌁S sentinel · ⌁B beast · ⌁S+B both) shown as a chip in the XMB sub line · CH-04.2 — moved dr-hp/dr-sh/dr-reg/dr-rng/radar + pt-hp/pt-sh/pt-blood into MOD·COMPANION, dr-out + pt-dmg into MOD·COMPANION WEAPON, and added 3 new companion-weapon mods: SENTINEL TRIGGER (sr-cyc, table per −0.05 → every drone weapon interval ×0.95/rank, R10 = ×0.5), FREEZE RAY SAP (fr-sap, mul on weapons[4].sapShieldPct, +6%/rank), BEAST JAWS (pt-jaw, ramp biteStagger 0.8→2.4 s) · CH-04.3 — MOD·HEAVY keeps launcher ordnance only (fr-yld/nv-yld/vt-wrh); migration by id is STRUCTURAL: node ids are permanent, ac-meta-v3 cards + v2 rank banks adopt through _adoptCards/_ranksToCards walking M.nodes by id, so moved nodes re-adopt saved ranks with zero data rewrite (harness-verified v3 + v2 paths + reload idempotence) · CH-04.4 — FREEZE RAY sentinel weapon: 5th drone weapon-table entry (style freeze, feeds on RIFLE ammo via a fractional accumulator at drainPerSec 3/s), continuous siphon beam in companions.js (one reused beam mesh + impact glow — no per-frame allocations), sap ticks every 0.25 s hook enemy.applySap(): shields drained at sapShieldPct 7 % of MAX per tick (28 %/s ≈ 3.75 s to strip a L1 JACKAL's 90 shields) bypassing the frontal gauntlet, then hp tick 6 dmg while DEF-DOWN stacks build 1/s (cap 5); each stack = +6 % damage taken from ALL sources (5 stacks = ×1.30), decays 1 per 2.5 s after a 0.6 s contact grace (enemy.updateSap); near-silent whisper-siphon loop in audio.js (bandpass hiss 0.028 + 1.18 kHz whine 0.012, freezeStart idempotent / freezeStop on beam end, drone death, XMB open); HUD: enemy health bar grows up to 5 ice-blue stack pips; XMB drone-weapon row describes the beam curve
+worklog.6.decisions = STATED DECISIONS replacing the CH-04.4 ASSUMPTION (exact curve, user gave 'confirm or replace with a stated decision'): (1) DEF-DOWN is a stacking debuff, not a new armor pool — enemies have no armor layer and adding one would rescope every balance table; the beam's 'then armor' phase = the bare-hp chew + the vulnerability stacks, matching the ASSUMPTION's own wording '% reduction per second, decaying after' · (2) stack effects: +6 % damage taken per stack (cap 5), 1 stack/s of beam contact, 0.6 s grace then −1 stack per 2.5 s — all tunables in ASSETS.companions.drone.defDown · (3) BLOOD FOR SHIELD tagged type 'both' (it procs on drone AND beast kills) — the one exception to the sentinel/beast tag pair · (4) radar keeps pool 'frame' while moving to the companion column — pool governs drops (CH-02 sim distribution unchanged), col governs the XMB · (5) sr-cyc ships as kind 'table' per −0.05 (NOT 'red') — the harness caught that apply() gates the table branch on kind === 'table' and a red-tagged table node would pset the whole weapons array to a scalar; negative per is the same ×0.95/rank math through the existing machinery
+worklog.6.markers = assets.js CH-04.1 (type tags + column comment) · CH-04.2/04.3 (column restructure + new nodes) · CH-04.4 (freeze weapon entry + defDown tunables) · mods.js CH-04.2 (describe() field-aware negative-per table) + CH-04.3 (migration-by-id header note) · companions.js CH-04.4 (updateDroneFreeze + paintFreezeBeam + stopFreezeBeam + drone siphon state) · enemy.js CH-04.4 (sap state init + applySap + updateSap + damage() vulnerability + bar pips) · audio.js CH-04.4 (freezeStart/freezeStop loop) · hud.js CH-04.1 (columns + type chips) · CH-04.2 (freeze weapon row descs) · CH-04.3 (MOD·HEAVY relabel) · CH-04.4 (freezeStop in openXmb)
+worklog.6.files = assets.js, mods.js, companions.js, enemy.js, audio.js, hud.js, README.md (one-line config-guide pointer fix — MOD·HEAVY → MOD·COMPANION/COMPANION WEAPON + 5-weapon rack; not a version bump), scripts/test_ch04.mjs (harness, 39 checks)
+worklog.6.hygiene = assets.meta.version string was still '0.8.0' after CH-03 shipped as v0.8.1 — aligned to 0.8.1 (no gameplay effect)
+worklog.7.date = 2026-10-28
+worklog.7.chunk = CH-04b (hotfix — no new features, no plan.next change)
+worklog.7.title = XMB "gone" — blocked-storage crash + menu hardening
+worklog.7.status = done · shipped 2026-10-28 (frame-scape-v0.8.1-ch04b-patched.zip) · plan.next stays CH-05 · v0.8.2 still NOT landed
+worklog.7.report = USER REPORT: 'xmb menu appears to be gone' — screenshot showed the XMB overlay open (static header/hint/credits/footer all present) with ZERO columns and the default card box. Diagnosis path: clean ch04 zip reproduced perfectly in headless Chromium (keyboard, gamepad stub, fresh saves, stale v2 rank banks, v3 maxed cards, freeze ray equipped — 16 columns every time), zip md5-verified against the tree, index.html/hud.css byte-identical to CH-03, flat file diff clean. The ONLY env-dependent statement in the pre-render path was hud.js buildXmbCols line 'const hasSave = !!localStorage.getItem(svKey)' — UNWRAPPED, runs on EVERY menu open. Browsers that block site data for an origin (privacy shields, private modes, per-site cookie blocks — common on neocities installs) throw SecurityError on the storage GETTER itself, so the read throws, buildXmbCols dies after the overlay unhid but before renderXmb → exactly the reported screenshot. Root cause predates CH-04 (present in CH-03); the user's browser/site-data state changed server-side-independently, which is why wipe + re-upload + refreshes could not fix it.
+worklog.7.fix = (1) hud.js buildXmbCols: the hasSave read wrapped in try/catch (storage blocked → hasSave false, menu builds normally — save/load state column shows EMPTY); (2) hud.js hasSave() method (dead code, zero callers) hardened the same way; (3) hud.js openXmb: build+render wrapped in try/catch — ANY future build failure now renders a degraded-but-open menu (one MENU DEGRADED column + the error message in the card panel naming the cause and the allow-site-data remedy) instead of an empty shell; refreshXmb and closeXmb respect the degraded flag so the error card survives and the next open rebuilds fresh; (4) hud.js xmbNav: nextRow/nextCol/confirm/scrap paths guard against empty or missing cols (the % 0 modulo would have poisoned xcol with NaN); (5) main.js boot: window error + unhandledrejection traps surface any runtime error ON SCREEN in the XMB card (menu open) + console — no more silent deaths.
+worklog.7.verify = node --check on the 3 touched files · 39-check harness green (data untouched) · headless Chromium: (A) normal boot → 16 columns, closes/reopens; (B) localStorage getter forced to throw SecurityError → 16 columns (root-cause fix proven — this exact state reproduced the user's blank menu before the fix); (C) forced build failure → MENU DEGRADED card, navigation harmless, close + reopen after 'heal' rebuilds all 16 columns; footer + boot menu show v0.8.1b.
+worklog.7.decisions = STATED DECISIONS: (1) assets.meta.version bumped 0.8.1 → 0.8.1b as the user-visible fix marker (XMB footer + boot menu) — deliberately NOT v0.8.2, which lands with CH-05 per phase.bump-rule; (2) the degraded menu shows the error text instead of failing quiet — diagnostics beat polish for a solo-dev feedback loop; (3) with storage blocked the game is FULLY playable, progression just does not persist across reloads (mods.js/main.js were already try/catch-safe — only the menu read was not).
+worklog.7.files = js/hud.js (770-wrap + hasSave + openXmb try/catch + renderXmbError + xmbNav guards), js/main.js (boot error traps), js/assets.js (meta.version 0.8.1b), README.md (v0.8.1b hotfix note), zip re-cut as ch04b
+worklog.8.date = 2026-10-28
+worklog.8.event = ROUTING SESSION — COMBAT DEPTH & ARSENAL (plan-only per user, no code shipped, routing-session pattern per worklog.5) — 19 user requests + 3 remark addenda registered per ai.routing.rule + ai.new-chunk.rule, nothing lost, nothing parked: typed damage model (puncture/impact/slash + heat/cold/electric/toxin, void exotic) → CH-25.1 · crit chance/crit damage/status chance on weapons + pets + abilities → CH-25.2 · REAL armor layer → CH-25.3 · shared damage entry → CH-25.4 · damage-numbers toggle (default ON, NET-NEW — user-confirmed + zip grep found no existing damage-number code) → CH-28.1 · enemy HP numbers in bar (default OFF) → CH-28.2 · status stack system (5 s, 10×, status-chance driven, icon + count over bars per user example "ic 10 ic 5 ic 2 ic 7") → CH-26.1 · heat/cold/electric/toxin single statuses → CH-26.2 · puncture/impact/slash statuses → CH-26.3 · void hitbox status → CH-26.4 · companion/ability proc hooks → CH-26.5 · elemental proc mods all weapon pools → CH-27.1 · mod-config combos viral/gas/corrosive/magnetic → CH-27.2/27.3 · sniper scope mod → CH-27.4 · old-weapon status retrofit patch + gear level bands (L1-20 scarce · L20-40 ramp · L40-60 serious · L60-80 end-game) → CH-29 · weakpoints (headshots + held-weapon shots) → CH-30 · threat detection + companion hold-fire → CH-31.1 · find-enemy sentinel mod (blinking HP bars) → CH-31.2 · explosive chain gun (archgun/Larkspur-like) + heavy platform + shared HEAVY ammo → CH-32 · heavy sniper + heavy machine gun → CH-33 · heavy flamer + heavy syphon → CH-34 · oozi-style machine pistols + dual wield → CH-35 · mod EQUIP/UNEQUIP request = EXACT match to CH-14.2 + CH-15.1 already in contract — no new line, cross-ref ch-14.note. THREE new phase blocks: §08D phase 7 Combat systems v0.13.0 (CH-25…29) · §08E phase 8 Enemy & companion AI v0.14.0 (CH-30…31) · §08F phase 9 Arsenal expansion v0.15.0 (CH-32…35). Keyword-heuristic overrides documented (worklog.5 precedent): "pistol"/"weapon"/"flame" keyword hits on CH-18 overridden for scope — dual wield + new pistols → CH-35 (ch-35.note), heavy flamer → CH-34 (ch-18.note cross-ref; CH-18 keeps the personal pistol-ammo flamethrower); elemental-mod "mod" substring hits on CH-03/14/15 (card/UI scope) overridden → CH-27 new gameplay scope with deps CH-14+CH-15 (ch-27.note). PLAN ORDER: meta.plan.then = CH-25 user-promoted via user.sort — runs right after CH-05 BEFORE phase 3 (user: statuses are the foundation); id order resumes after. USER GATE: statuses (CH-26) land before ANY new weapon — phase 9 chunks all dep CH-25+CH-26. Denominator 59 → 96 feature lines; meta bumped to FLAT v1.3. ZIP SIZE DRIFT note: ch04b zip measures hud 56.6k / assets 47.9k / enemy 30.9k / companions 24.4k / main 32.9k / mods 18.0k / audio 14.1k — larger than the §03 v0.8.1 table; per fs.note the §03 table still governs estimates (all new chunks green), re-measure at patch time if any lands yellow.
+worklog.8.decisions = user-confirmed decisions of record (2026-10-28 Q&A + remarks): (1) REAL enemy armor layer — supersedes the worklog.6 decision "enemies have no armor layer"; armor pool elite+ first then regulars; slash ignores it, corrosive strips 100% at 10 stacks; FREEZE RAY DEF-DOWN stays and stacks alongside; (2) shared HEAVY ammo pool for all five heavy weapons; (3) session scope = plan only (routing session, no zip); (4) floating damage numbers are NET-NEW, toggle default ON; crit VISUAL styling awaits the user's reference image ("criticals from image im uploading now" — image NOT received this session; default styling until it lands, fold into CH-28.1); (5) status stacks render as ICON + COUNT over enemy bars (user example "ic 10 ic 5 ic 2 ic 7"), superseding the interim "pips" choice; (6) gear crit/status budget bands L1-20 scarce · L20-40 ramping · L40-60 serious · L60-80 end-game (CH-29.2, mapped onto the L10→L80 curve); (7) old-weapon retrofit is its own patch AFTER statuses land (CH-29 deps CH-25+CH-26)
+worklog.9.date = 2026-10-28
+worklog.9.event = ROUTING SESSION #3 — CRIT IMAGE + MODS & HOME BASE (plan-only, no code shipped; routing-session pattern per worklog.5/8) — the user's CRIT REFERENCE IMAGE arrived (Crit_numbers.webp) and was folded into ch-28.f1, closing the worklog.8 open item: crit tier ladder white (normal, small) → yellow → orange → red (max, largest), font scale grows per tier, status DoT ticks smaller with the stack COUNT as a small subscript (reference reads red "78" / orange "55" with small "5" / yellow "8" + "5") · 10 further user requests registered per ai.routing.rule + ai.new-chunk.rule, nothing lost, nothing parked: armor→EHP coefficients (300/600/900 armor = +100/+200/+300% base health) → unified curve written into ch-25.f3 + player-side wiring → CH-38.1 · GUIDED ORDINANCE (beam/sentinel-beam mod, +30% torso accuracy) → CH-37.1 · COMBUSTION BEAM (beam-kill explosion spreads a small portion of status stacks) → CH-37.2 · SHIVERING CONTAGION (cold procs echo 30% to enemies within 6 m; companion-weapon or rifle slot) → CH-37.3 · QUICK THINKING (energy bar = protective layer after health, up to 2.4× efficiency, stacks with armor coefficient) → CH-38.2 · BLINK DASH AUGMENT (enemy-targeted blink, range up to 4×, arrive + stagger + up to 5× melee damage at rank 10) → CH-38.3 · DUPLEX BOND (every 300 energy spent per rolling 30 s spawns a sentinel clone; max 3; 30 s lifetime; 90 m leash) → CH-39.1 · CONTAGIOUS BOND (companion kill copies 50% of the victim's status stacks to enemies within 9 m) → CH-39.2 · EXTRACT LOADING SCREEN (space-shuttle art) + HOME BASE (shuttle interior: large windshield, narrow hallway with side workstations, back rooms) → CH-36.1/2/3 (phase 3) · FOUR new chunk blocks INSIDE existing phase sections: CH-36 → §07, CH-37+CH-38 → §08D, CH-39 → §08E; per ai.new-chunk.rule they compete for plan.next in GLOBAL id order (all run after CH-35 unless user-promoted via user.sort) · keyword overrides documented (worklog.5 precedent): "beam"→CH-34, "cold"→CH-25, "armor"→CH-25, "blink"→CH-31, "sentinel/companion"→CH-31 — all overridden for scope, see ch-37/38/39 notes · ZIP RECON (ch04b): blink dash EXISTS (specials.useDash → player.dash; blink cd 7 / dist 7 / maxDist 20; energy 20), player energy pool EXISTS (max 100 / regen 14, spend() + lastEnergyUse stamp = duplex hook), enemy rigs carry torso/head mesh anchors (CH-37.1 bias anchor), NO armor stat exists anywhere (visual-only namesakes) → player armor stat net-new · denominator 96 → 109 feature lines; meta bumped to FLAT v1.4
+worklog.9.decisions = stated decisions + assumptions of record: (1) crit ladder interpreted from the reference image; per-type coloring stays on non-crit numbers; (2) armor→EHP curve = base × (1 + armor/300), ONE assets.combat table shared player- and enemy-side; (3) quick thinking efficiency = up to 2.4 damage absorbed per energy point, rank-scaled, death deferred while energy lasts; (4) duplex bond = rolling 30 s window, 300 energy per clone, max 3 clones, 30 s lifetime, 90 m leash, simplified-AI mesh reuse; (5) contagious bond copies 50% of stacks (rounded, min 1 per type); (6) blink dash + energy pool VERIFIED via zip recon — the augment layers on the live special, no base ability needed; (7) home-base back-room functions TBD (candidates: mod-bench kiosk, salvage, stash) — confirm before coding; (8) combustion-beam explosion fraction/radius and guided-ordinance flat +30% are assets tunables
+worklog.10.date = 2026-10-28
+worklog.10.event = MINI ROUTING — UNIVERSAL CRATE-BREAK THRESHOLD (single user request, plan-only, no code shipped) — request: "allow breaking crates with any damage types as long as that damage lines up with the 2000 damage mark of rocket launcher" → routed to CH-06 (keyword "crate" hit; "damage/type" substring hits on CH-25 overridden for scope — CH-25 is the ENEMY damage pipeline, prop-break threshold = container scope, worklog.5 precedent) as ch-06.f4 UNIVERSAL BREAK THRESHOLD: any damage type breaks crates/barrels/chests once the delivered damage reaches the rocket launcher's 2000 mark — one shell (≈2000) instant-breaks, lesser hits chip the same prop HP pool toward the same threshold; assets breakThreshold constant default 2000 keyed to the launcher's per-shell damage (not hard-coded); per-material HP stays ≤ the mark so the ch-06.f1 "one rocket shell still kills" contract holds; props take raw typed totals (no shields/armor) once the CH-25 pipeline ships · CH-06 est.out 8 → 9.2, est.total 30.3 → 31.5 (green) · denominator 109 → 110; meta bumped to FLAT v1.5; plan.next (CH-05) / plan.then (CH-25) unchanged
+worklog.10.decisions = stated decisions of record: (1) threshold = one assets constant aligned with the launcher's 2000 mark — retunes to the launcher automatically if its damage ever changes; (2) accumulation model: chips from ANY source pool into the same prop HP — no per-hit 2000 requirement (only a single rocket shell meets it in one hit); (3) no type restriction and no elemental-resistance gate on props
+
+worklog.11.date = 2026-10-28
+worklog.11.chunk = CH-05
+worklog.11.title = Scavenge mod + pet-opened lockers
+worklog.11.status = done · shipped 2026-10-28 (frame-scape-v0.8.2-ch05-patched.zip) · phase 2 complete → v0.8.2 LANDED · verified by a 50-check Node harness (scripts/test_ch05.mjs) driving the REAL mods.js + assets.js + static wiring checks across all six THREE-side files, PLUS a headless-Chromium boot/drive smoke test (scripts/smoke_ch05.cjs) through the real buildWorld/updatePet/spillLockerLoot path
+worklog.11.summary = CH-05.1 — eight SUPPLY LOCKERS from assets.world.lockers[] (corridor 1 · hangar 2 · valley 2 · city 3, hand-placed clear of props/spawns): textured body (texLocker) + hinged door face (texLockerDoor) + per-instance face glow that fades in with the swing (smoothstep, openSwing 1.9 rad over 0.8 s), each with its own collider (deliberately NOT breakable — CH-06's universal threshold covers crates/barrels/chests, lockers are opened never smashed), stand/front points derived from ry, per-zone loot level from ASSETS.enemy.leveling.zones (corridor 2 · hangar 5 · valley 7 · city 8; fallback 5 for future expanse lockers until CH-10); updateLockers(dt) in world.update drives swing + respawn · CH-05.2 — ONLY THE BEAST opens lockers: companions.scanLockerDesignation sweeps world.lockers every frame with the SAME ~9.5° flat-cone math as main.js scanTargets (no main.js touch needed — designation lives on the companions instance), designated readouts land in hud targetinfo ("SUPPLY LOCKER — Xm · BEAST ONLY") and the ecology raw prompt "BEAST ONLY — POINT RETICLE"; the beast runs to the stand point (catch-up sprint curve), channels nose-down (growl), a reticle-centered 2D-canvas progress ring shows the fraction (built in hud.js — no index.html/hud.css edits), then flips locker.opened: world swings the door + arms respawn 75-120 s and specials.spillLockerLoot(pos, level) spills ELITE-quality loot = the elite tier of rollDrops (elitePower + eliteCr + eliteModChance chip) + a DOUBLE roll of the standard chance/weighted table, all through dropRateMult(zone level); X-press near a locker answers a throttled "BEAST ONLY — POINT YOUR RETICLE AT THE LOCKER" toast — the pre-CH-05 speculative X-open hook in ecology.js was REMOVED as contract-breaking; channel teardowns: combat-first (enemy in aggro cancels), beast death, kennel/toggle, run reset, a NEW designation, locker opened — a running channel PERSISTS if the player merely looks away (the ring is the feedback) · CH-05.3 — SCAVENGE beast mod (pt-scav, MOD·COMPANION, ⌁B chip, companion pool): kind ramp min 12 → max 2 (linear −1 s/rank through the existing _rampVal/apply machinery onto companions.pet.scavTime; R0 = the no-card 12 s baseline so the feature works without the card), XMB card description + describe() range all via the existing field-aware paths
+worklog.11.decisions = STATED DECISIONS: (1) no-card baseline = 12 s (identical to R0) — the locker feature is alive before the player ever sees a SCAVENGE card; (2) combat ALWAYS wins — an enemy within the pet aggro radius cancels the channel (the beast is a hunter first); designation loss does NOT cancel a running channel (ring feedback, look away freely) but a NEW designation re-targets; (3) lockers are never breakable — damageBox untouched — so the CH-06 universal-threshold contract stays scoped to crates/barrels/chests; (4) loot level = the SPAWNER'S zone table (enemy.leveling.zones), not the player level — payout scales by where the locker lives (city 8 > corridor 2, dropRateMult-verified monotonic); (5) "double roll" = the standard non-elite chance+weighted table rolled twice ON TOP of the always-spilled elite tier; (6) designation cone is computed in companions.js (same math as scanTargets) instead of main.js — keeps main.js untouched and the state colocated with the channel; (7) door snap-shuts on respawn (harvests pop back the same way — accepted). FILE-SCOPE NOTE: ecology.js was touched OUTSIDE ch-05.files — unavoidable: its pre-CH-05 speculative X-opens-locker hook directly contradicted the CH-05.2 beast-only contract (it had to be removed, and the prompt slot it already owned is where the beast-only teach prompt lives); everything else stayed inside chNN.files (the HUD ring is built dynamically in hud.js so index.html/hud.css stay untouched)
+worklog.11.markers = assets.js CH-05.1 (world.lockers[] + lockers{} tunables) · CH-05.3 (pet.scavTime + pt-scav node) · textures.js CH-05.1 (texLocker + texLockerDoor) · world.js CH-05.1 (build block + updateLockers + export; block sits at the END of buildWorld — zoneAt reads expanse bounds consts declared later, an earlier placement died in the TDZ at boot, headless-proven) · specials.js CH-05.2 (spillLockerLoot) · companions.js CH-05.2 (scanLockerDesignation + _cancelLockerChannel + _petLockerTarget + channel branch + combat-first teardown + teach-toast) · ecology.js CH-05.2 (beast-only contexts + _lockerVerb progress + X-press hint, open hook removed) · hud.js CH-05.2 (channel ring canvas + designated-locker target line)
+worklog.11.files = js/assets.js, js/textures.js, js/world.js, js/specials.js, js/companions.js, js/ecology.js, js/hud.js, README.md (v0.8.2 What's new entry), scripts/test_ch05.mjs (50 checks), scripts/smoke_ch05.cjs (headless boot+drive)
+worklog.11.hygiene = assets.meta.version 0.8.1b → 0.8.2 as the PHASE VERSION (phase.bump-rule: phase 2 closed) — visible in XMB footer + boot menu, smoke-verified
+worklog.11.sizes = YELLOW-ZONE re-measure at ship (fs.note rule; §03 table stays the estimate basis): world 63.6k · hud 59.0k · specials 52.4k · assets 51.4k · companions 30.8k · textures 25.0k · ecology 16.4k · mods 18.0k — next est that lands yellow re-reads from theseworklog.12.date = 2026-10-28
+worklog.12.chunk = CH-25
+worklog.12.title = Damage type core (typed damage + crit/status stats + armor layer)
+worklog.12.status = done · shipped 2026-10-28 (frame-scape-v0.8.2-ch25-patched.zip) · phase 7 opened (1/7) — v0.13.0 NOT landed (phase.bump-rule) · version string stays 0.8.2 · verified by a 177-check Node harness (scripts/test_ch25.mjs, real mods.js+assets.js + math oracle + static wiring) PLUS a live headless-Chromium smoke driving the REAL typed pipeline in-page (armor mitigation, slash-ignores-armor, DEF-DOWN-alongside-armor, gauntlet typed drain, toxin shieldBypass — all EXACT to 4 decimals) with ZERO page errors
+worklog.12.summary = CH-25.1 — Typed damage model: assets.combat block (types[7] · typeMultipliers with the stated curves — toxin shieldBypass:true + health ×0.75 · shields resist heat 0.75 while health takes ×1.25 · slash armor factor 0 · puncture armor 1.25 · electric 1.25/cold 1.15 vs shields) · every fighting def carries `types` FRACTIONS of the moddable scalar `damage` (stated decision: fractions-of-scalar, NOT absolute values — power mods that mul `damage` keep scaling the whole typed hit and the RL-4 box-break mark + nv-yld paths stay mod-driven) — guns (AR-60 puncture · M6-P impact · SRS-9 puncture/crit king 0.30×2.5 · CQS-8 slash per-pellet status machine · RL-4 impact+heat blast), rifle bash, nikana (slash 0.60), frag, nova pulse, R2 specials (missiles/pbolt/shock/firenova), all 5 drone weapons + freeze ray (pure COLD), pet bite (slash-heavy) · CH-25.2 — critChance/critMult/statusChance first-class on ALL of the above; rollCrit() rolls ONCE per hit (per pellet for the shotgun, per missile for the pair); crit pre-multiplies the typed values so pools see final numbers; enemy.lastHit = {crit, total, statusChance} flags CH-28 styling; _statusGate() stub on the enemy = the single CH-26 proc-roll wiring point; XMB readouts: weapon rows + specials assign rows + drone weapon rows now show TYPE split · CRIT n% ×m · STATUS n% (freeze ray row rewritten: "6 COLD dmg per tick") · CH-25.3 — REAL armor pool: this.armor from arch.armor (grunt 40 · jackal 60 · sentinel 10 · elite 220 · hound 80 · kaiju 300), FLAT by design (stated decision: the EHP curve is the single power lever; per-level scaling would compound with the 22%/level hp curve — revisit at CH-29 gear bands if endgame feels wrong); mitigation = 1/(1+(armor/factor)/300) through assets.combat.mitigation() — ehpMult()/mitigation() live IN assets.combat as the SHARED curve (CH-38.1 player side wires the same numbers); CORROSIVE (CH-27) will subtract from this.armor; DEF-DOWN vulnerability multiplies AFTER pools (in-page verified: 88.2353 × 1.3 = 114.7059 exact) · CH-25.4 — ONE shared entry point: weapon.js exports applyDamage(enemy, {types, crit, statusChance}, game, {point, dir, kind}) + typedHit()/rollCrit()/scaleTypes(); retrofit sites: weapon.js bullets (per pellet) + melee, specials.js splash(hit) threading through ALL four projectile booms (grenade/missile/rocket/pbolt) + shockwave + firenova burn tick (typed heat, DoT never crits — stated), companions.js droneShoot (W rides whole) + drone homing pod + FREEZE RAY hp chew (FOUND UNWIRED — CH-04.4 documented it, applySap only drained shields; now a typed COLD tick through the shared pipeline, armor applies, DEF-DOWN feeds back) + pet bite, main.js NOVA pulse; VATS execute keeps the RAW bypass path (9999, no pools — execute semantics); legacy raw path preserved intact for any untyped caller
+worklog.12.decisions = STATED DECISIONS (exact curves per the f1 contract): (1) types = FRACTIONS of the moddable scalar (sum 1, harness-enforced) — absolute values would drift against every existing mul node; (2) typeMultipliers table as shipped: shields — puncture/slash/heat 0.75, impact 1.0, cold 1.15, electric 1.25 · health — heat 1.25, toxin 0.75, rest 1.0 · armor factors — puncture 1.25, impact/heat 0.75, slash 0 (ignores completely), cold/electric/toxin 1.0; (3) armor→EHP exactly the user curve base × (1 + armor/300), helpers ehpMult/mitigation IN assets.combat so CH-38.1 shares ONE implementation; (4) armor flat per archetype (no level scaling) — avoid double-dipping with the hp perLevel curve; (5) gauntlet rule UNCHANGED (only kind 'bullet' + frontal meets the shield pool) with typed drain + toxin slipping past; overflow into a depleted gauntlet is consumed (same as the raw path today); (6) crit rolled once per projectile/pellet BEFORE pools; splash falloff scales AFTER crit; DoT ticks never crit; (7) raw untyped hits = legacy behavior exactly (no pools) — only the VATS execute remains raw; (8) freeze-ray hp chew gap closed as part of 25.4 (documented-but-unwired in CH-04.4 — a real bug, harness + smoke now pin it); (9) FILE-SCOPE exceptions: hud.js (f2 requires XMB/HUD readouts; hud sits outside ch-25.files) + main.js (NOVA ability hit required by f1 "abilities included") — worklog.11 ecology.js precedent
+worklog.12.markers = assets.js CH-25.1/25.2 (combat block + per-def typed/crit/status comments) · CH-25.3 (archetype armor values) · enemy.js CH-25.3 (armor pool init) · CH-25.4/25.1/25.3 (damageTyped/_hpHit block) · CH-25.2 (_statusGate stub + lastHit init) · weapon.js CH-25 helpers block + CH-25.4 bullet/melee sites · specials.js CH-25.4 (import + splash hit param + 4 boom sites + shock + firenova + rocket) · companions.js CH-25.4 (import + droneShoot/makeDroneMissile/freeze chew/pet bite) · main.js CH-25.4 (nova + import) · hud.js CH-25.2 (3 readout sites)
+worklog.12.files = js/assets.js, js/enemy.js, js/weapon.js, js/specials.js, js/companions.js, js/main.js, js/hud.js, README.md (CH-25 patch note, no version bump), scripts/test_ch25.mjs (177 checks)
+worklog.12.hygiene = no version bump (phase 7 open) — assets.meta.version stays 0.8.2, visible in XMB footer + boot menu; zip renamed per ai.deliverable as frame-scape-v0.8.2-ch25-patched.zip
+worklog.12.sizes = re-measure at ship (§03 table stays the estimate basis): assets 58.9k · weapon 36.6k · enemy 36.2k · specials 55.0k · companions 32.3k · hud 60.1k · main 33.4k — CH-25 est stayed GREEN at §03 sizes; next est that lands yellow re-reads from these
+worklog.12.followups = CH-26 status stacks now have their gate (_statusGate) + payload channel (statusChance) live on every source — no further caller work needed · CH-27 CORROSIVE strips via this.armor subtraction · CH-28.1 crit styling reads enemy.lastHit.crit · CH-38.1 player armor wires into assets.combat.ehpMult/mitigation · CH-06.4 prop threshold: props take raw typed totals once containers exist (props have no shields/armor by design)
+worklog.13.date = 2026-10-28
+worklog.13.chunk = CH-06
+worklog.13.title = More breakable containers (barrels, chests)
+worklog.13.status = done · shipped 2026-10-28 (frame-scape-v0.8.2-ch06-patched.zip) · phase 3 opened (1/6) — v0.9.0 NOT landed (phase.bump-rule) · version string stays 0.8.2 · verified by a 155-check Node harness (scripts/test_ch06.mjs, real assets.js + break-math oracle + static wiring) PLUS a 21-check live headless-Chromium smoke (scripts/smoke_ch06.cjs) driving the REAL world in-page — census, chip curves, rocket one-shots, stack chain-collapse, spill routing and a REAL melee swing all EXACT, zero page errors
+worklog.13.summary = CH-06.1 — ONE config now drives every breakable prop: assets.world.containers { breakThreshold · materials {wood 150 · metal 320} · kinds {crate/barrel/chest} · spill tables · zones per-zone MIX } — the corridor/hangar/city `crates` lists MOVED into containers.zones byte-identically (harness pins every coordinate) and world.js builds all four zones through buildZoneContainers/addContainer; NEW PROPS: barrels = 10-segment cylinder r0.42 h1.1 (1 draw call; texBarrelWood staves+iron-hoops W-12 / texBarrelMetal ribbed CHEM-42 FLAMMABLE drum with rust streaks), chests = ONE 0.98×0.7×0.66 box with the lid seam + cross braces + hazard lock plate PAINTED into texChest (house PS2 style, keeps the breakable record as simple as a crate's); placements hand-checked clear of walls/barriers/pillars/dropship/cars/planters/lockers/spawns (corridor: 8 crates + chest + 2-drum stack + drum · hangar: 4 crates + 2-drum stack + drum + chest · valley: 2 wood barrels + chest (its FIRST containers — exercises the wood debris path) · city: 8 crates + 2 wood + 1 metal drums + chest); per-material pools: wood 150 · metal 320 · crates keep the FULL 2000 threshold pool (legacy balance untouched) — debris follows the material (wood splinters tumble · metal chunks + a 3-spark death spray) · CH-06.2 — zone MIX is the single placement list; `stack: true` entries ride ON the previous prop of their zone list (top drum at y 1.65) and base.linked chain-collapses them EXACTLY like the stacked hangar containers · CH-06.3 — spill routes by kind in damageBox: crates keep spawnConversionLoot BYTE-FOR-BYTE (energy 50 + ammo pick + rocket 15% + crateModChance 0.18, overkill mult clamp 0.5-×3); NEW specials.spawnContainerSpill: barrels = CR 15-30 + one ammo handful (rifle 12/pistol 6/shell 3), NO mod chip; chests = CR 60-120 + sniper 1/shell 6 + 0.18 mod-chip chance (crateModChance parity); unknown kinds fall back to the conversion table (config typo can never void loot) · CH-06.4 — UNIVERSAL BREAK THRESHOLD: breakThreshold = 2000 lives in assets keyed to the RL-4 per-shell damage (fireRocket now reads it — the hard-coded 2000 is retired; rk-dmg power mods still push overkill → ×3 cap); world.js BOX_HP retired (BREAK_THRESHOLD); NO type gate anywhere — bullets (existing damageBox call, raw mod-multiplied scalar), splash/AoE (existing sweep) and NOW MELEE (doMeleeHit sweeps world.breakables with the enemy cone math + 0.55 prop-radius slack; bash 45/nikana swing) all chip the same pool; props have no shields/armor and take the raw delivered total, no crit/status rolls (nothing to feed — stated decision); ONE rocket shell (2000 ≥ every pool incl. crates at 2000) still kills every prop
+worklog.13.decisions = STATED DECISIONS: (1) crates keep the FULL 2000 pool — per-material HP applies to the NEW props only; retuning crates to wood-150 would have broken the established rocket-food balance and the conversion economy (hud's RL-4 mod text still reads true); (2) chest = metal kind default, single painted mesh — a two-mesh lid/group would complicate raycast targets + solids removal for zero PS2-era visual gain; (3) barrel = 10-segment cylinder, one draw call, ~16 props ≈ +18 draw calls worst case, zone-culled by the existing draw-distance behavior — inside the ≤200 budget; (4) melee chip uses the raw melee scalar (45 bash / nikana) with NO crit roll — crit/status are enemy-pool concepts, props have no pools (same rule as f4's "raw totals"); (5) overkill mult reuses the conversion clamp (0.5-×3) for ALL kinds — barrels/chests pay ×3 on rocket overkill exactly like crates; (6) spill amounts are FLAT ranges (15-30/60-120 CR) NOT dropRateMult-scaled — containers are static props, not level-scaled kills (locker precedent: loot level = spawner zone; containers have no zone level); (7) lockers untouched — damageBox never sees them (worklog.11 contract); (8) FILE-SCOPE: all changes inside ch-06.files (assets/world/textures/specials) + weapon.js — weapon.js is OUTSIDE ch-06.files but UNAVOIDABLE: f1 "bullets/melee chip them" requires the melee sweep there (bullet chip path already existed); README.md patch note per worklog.12 precedent
+worklog.13.markers = assets.js CH-06.1 (palette block + containers config comment) · world.js CH-06.4 (BREAK_THRESHOLD + header) · CH-06.1 (addBox spec + makeBreakable + addContainer + M.barrelWood/barrelMetal/chest + damageBox debris) · CH-06.2 (4× buildZoneContainers sites + stack linking) · CH-06.3 (damageBox spill routing) · textures.js CH-06.1 (texBarrelWood/texBarrelMetal) · CH-06.2 (texChest) · specials.js CH-06.4 (fireRocket threshold read) · CH-06.3 (spawnContainerSpill) · weapon.js CH-06.4 (bullet comment + melee sweep)
+worklog.13.files = js/assets.js, js/world.js, js/textures.js, js/specials.js, js/weapon.js, README.md (CH-06 patch note, no version bump), scripts/test_ch06.mjs (155 checks), scripts/smoke_ch06.cjs (21 checks, headless boot+drive)
+worklog.13.hygiene = no version bump (phase 3 open) — assets.meta.version stays 0.8.2, visible in XMB footer + boot menu; zip named per ai.deliverable as frame-scape-v0.8.2-ch06-patched.zip; saves untouched (containers are world props, no schema change)
+worklog.13.sizes = re-measure at ship (§03 table stays the estimate basis): world 69.0k · assets 63.6k · hud 60.1k · specials 56.7k · weapon 37.7k · enemy 36.2k · main 33.4k · companions 32.3k · textures 28.7k · mods 18.0k — CH-06 est stayed GREEN at §03 sizes; next est that lands yellow re-reads from these
+worklog.13.followups = CH-07 (hangar bay expansion) is plan.next — its "more cover and containers" can now just add entries to containers.zones.hangar · CH-10 locker placement pass unchanged (lockers stay non-breakable) · CH-21/24 biome tiles get containers for free via new containers.zones entries · CH-27 CORROSIVE/elemental mods apply to props automatically through the raw-scalar path (no work needed) · spill CR ranges are assets-tunable if economy feels off after a live session
+worklog.14.date = 2026-10-28
+worklog.14.chunk = CH-25.5 (hotfix registered INSIDE the done CH-25 block — worklog.10 mini-routing precedent)
+worklog.14.title = REGRESSION FIX — drone weapons (and R2 missiles/pbolt) did no damage
+worklog.14.status = done · shipped 2026-10-28 (frame-scape-v0.8.2-ch25f5-patched.zip) · no version bump, no chunk reopen (f5 registered in the done CH-25 block, denominator 110 → 111) · verified by a 111-check Node harness (scripts/test_ch25f5.mjs) + a 31-check headless-Chromium smoke (scripts/smoke_ch25f5.cjs, real module-instance typedHit + real live-fire vs a fielded enemy, deltas EXACT to 1e-6, zero page errors) + CH-06 harness regression 155/155
+worklog.14.summary = ROOT CAUSE — CH-25.4 moved every hostile-facing source onto the typed pipeline: companions.js droneShoot/makeDroneMissile/freeze-chew build typedHit(W) and land through applyDamage, but typedHit() read the scalar from def.damage while the five drone weapon defs keep their moddable scalar on the LEGACY `dmg` key — the key the dr-out table mod (kind 'table', field 'dmg', paths companions.drone.weapons), the XMB drone rows (hud.js dw.dmg) and the pod missile (dmg: W.dmg) all read. Result: {type: 0 × fraction} = 0 for ALL five drone weapons — direct shots (laser/bolt/burst), the pod (its hit payload rides splash()'s typed branch, which takes precedence over the raw dmg), and the freeze ray's hp chew; the ray's SHIELD sap kept working (sapShieldPct % of max never enters the typed path) which is why the beam looked half-alive. CLASS SWEEP — every typedHit() call site audited: guns/melee/nikana/nova/frag/pet carry damage ✓ · shock/firenova pass explicit totals (20/4) ✓ · TWO MORE SILENT VICTIMS: R2 HOMING MISSILES (typedHit(def), 90 hard-coded in the launchMissile call) + R2 PLASMA BOLT (typedHit(def), 60 hard-coded in the projectile literal) → zero enemy damage since CH-25. FIX — 3 files, 4 functional lines: (1) weapon.js typedHit: `total ?? def.damage ?? def.dmg ?? 0` (drone defs keep dmg as the ONE moddable key — dr-out ranks, HUD rows and the pod untouched; mods keep flowing: R10 dr-out doubles the scalar, harness-pinned); (2) assets.js: missiles def gains damage: 90, pbolt def gains damage: 60 (tunables-in-assets rule; the hard-coded numbers retire); (3) specials.js: useMissiles launches with def.damage, usePBolt builds direct + splash from const PD = def.damage (behavior byte-identical). VATS execute raw path, gauntlet rules, pet bite, CH-06 props: untouched.
+worklog.14.decisions = STATED DECISIONS: (1) fallback IN typedHit, not a drone-def rename — renaming dmg → damage would have had to touch the dr-out node field, hud.js rows and companions.js pod code (4 sites) and would have broken the CH-04.2 documented dr-out contract for zero player-visible gain; the fallback keeps ONE moddable key and the fix to ONE line; (2) R2 scalars moved ONTO the defs (not explicit totals at the call sites) — matches the fractions-of-scalar contract (the def IS the tuning surface per proj.tunables) and shock/firenova keep their explicit totals (DoT/pulse semantics, no def scalar needed); (3) freeze first-tick pin corrected during verification: _sapAcc gains stackPerSec × tick = 0.25/tick → the FIRST DEF-DOWN stack lands on the 4th tick (1/s) → first-tick chew is un-vuln'd 5.294118 (worklog.6 curve confirmed, not changed); (4) harness negative control proves the bug: OLD damage-only semantics sum drone defs to 0; missiles/pbolt now pass under BOTH semantics (scalar on def) — belt and suspenders.
+worklog.14.markers = weapon.js CH-25.5 (typedHit fallback + comment) · assets.js CH-25.5 (missiles/pbolt damage scalars + drone-weapons scalar-key note) · specials.js CH-25.5 (useMissiles def.damage + usePBolt PD)
+worklog.14.files = js/weapon.js, js/assets.js, js/specials.js, README.md (CH-25.5 hotfix note), scripts/test_ch25f5.mjs (111 checks), scripts/smoke_ch25f5.cjs (31 checks, headless live-fire)
+worklog.14.hygiene = no version bump (phase 7 open) — assets.meta.version stays 0.8.2 · zip named per ai.deliverable as frame-scape-v0.8.2-ch25f5-patched.zip · saves untouched (no schema change — pure hit-math fix)
+worklog.14.followups = CH-29 RETROFIT should re-affirm the drone defs' dmg key when it retypes drone/beast weapons · CH-22 third-person moves the drone fire origin — the typedHit fallback must survive any future def reshapes (the class sweep is pinned in the harness) · CH-26 status procs: drone weapons now deliver real statusChance rides (laser 0.06 … minigun 0.10) — proc volume will rise once CH-26 lands · CH-31.1 hold-fire regression list: freeze ray verified live in the smoke
+worklog.15.date = 2026-10-28
+worklog.15.event = ROUTING SESSION #4 — HUD DECLUTTER & COMPANION/WORLD POLISH (plan-only, no code shipped; routing-session pattern per worklog.5/8/9) — 8 user requests registered per ai.routing.rule + ai.new-chunk.rule, nothing lost, nothing parked: no top banner when receiving a DUPLICATE mod card (banner = new cards only) → CH-40.1 · enemy names ABOVE the health bar's status effects, not on the reticle → CH-40.2 · received-loot log much further toward the bottom → CH-40.3 · remove the controller-type indicator (bottom-left, in-game) → CH-40.4 · redundant reticle notifications about lockers/enemies removed → small footnote under the loot log → CH-40.5 · city-scape extraction post out of the middle of the road → ch-08.f3 (keyword "city" hit, rule-followed; 1-1-1 tie vs CH-21/CH-36 broken by id order; scope note: world-prop removal in the same files; if the post is the zone's only extraction trigger it RELOCATES rather than deletes) · companions follow the reticle only LOOSELY (damped/leashed, not led instantly) → ch-31.f4 (keyword "companion" hit, rule-followed) · companion/weapon COLOR CUSTOMIZATION (sentinel robot · beast pet · companion weapons; main color + highlights + weapon color; swatches blacks/red/oranges/greens/white/grays/purple/blues) → ch-13.f3 (keywords "weapon"+"pet" = most hits, rule-followed; "options" hit CH-12 overridden — global options ≠ per-item appearance; textures.js joined ch-13.files, ests re-keyed) · FIVE HUD requests grouped into NEW chunk CH-40 "HUD declutter & presentation pass" + NEW phase block §08G phase 10 HUD & presentation v0.16.0 (NOT phase 4 — menu scope vs game-window scope) · keyword overrides documented (worklog.5 precedent): "duplicate" hit CH-16 (mod bench ≠ pickup banner), "status"/"bar" tie-hit CH-26/CH-28 (combat scope, CH-26 at 39.2k), "locker" hit CH-10 (placement pass ≠ reticle notifications), "controller" hit done CH-01 (done chunks never routed to) · interplay pinned: f2 ordering holds pre-CH-26.1, f5 footnote = f3 position, CH-05.2 "BEAST ONLY" prompt moves into the f5 footnote · est checks: ch-08 30.1 · ch-13 30.5 · ch-31 34.1 · ch-40 27.9 — ALL GREEN ≤ 40k · plan.next UNCHANGED = CH-07 (id order governs; CH-40 queues after CH-39 unless user-promoted via user.sort) · denominator 111 → 119; meta bumped to FLAT v1.9
+worklog.16.date = 2026-10-28
+worklog.16.event = MINI ROUTING — AUTO RELOAD ON EMPTY + RELOAD PROMPT DECLUTTER (single user request, plan-only, no code shipped; worklog.10 mini-routing precedent) — request: the repeated center-screen "PRESS R TO RELOAD" prompt is annoying → add an AUTO RELOAD ON EMPTY toggle to settings, DEFAULT ON; when OFF, just flash the weapon icon on the right → routed to CH-40 as ch-40.f6, extending the HUD declutter pass per the user's own "also annoying" framing (groups with the worklog.15 batch) · keyword overrides documented (worklog.5 precedent): literal heuristic was a 1-hit-each tie — "weapon" on CH-13/CH-15/CH-18 (equipment hub / stat wiring / flamethrower ammo feed ≠ reload QoL), "toggle" on CH-28 (damage-number toggles ≠ reload behavior), "icon" on CH-26 (status icons ≠ weapon-icon flash) — all overridden for scope (first-id CH-13 would have been an incidental match) · settings surfacing follows the CH-28.3 pattern: toggle persisted in the meta save (default ON when absent, idempotent, no migration), surfaced in OPTIONS (CH-12.1 — CH-12 precedes CH-40 in id order); interim console/XMB toggle only if ever run out of order · ch-40.files += weapon.js (empty-mag/reload hook lives there), est re-keyed: read 15.5 → 19.8, out 12.4 → 13.6, total 27.9 → 33.4 (GREEN ≤ 40k) · denominator 119 → 120 (ch-40.f6); meta bumped to FLAT v2.0; plan.next unchanged = CH-07
+worklog.17.date = 2026-10-28
+worklog.17.event = MINI ROUTING — RETICLE SHAPE + AGGRO COLOR STATES (single user request, plan-only, no code shipped; worklog.10/16 mini-routing precedent) — request: change the reticle from an X to a dot that changes colors — white default, green friendly/item, orange no-aggro, red aggro'd enemy → routed to CH-40 as ch-40.f7, the chunk that already owns the reticle surface (f2 moved enemy names off it, f5 collapsed its notifications into the footnote) · keyword sweep documented (worklog.5 precedent): CH-40 "reticle" + "enemy [enemy name]" = 2 hits vs CH-31 "aggro" + "enemy [find enemy]" = 2 hits — strict first-in-id-order tie-break would send a rendering request to the threat/detection AI chunk, OVERRIDDEN for scope: reticle shape/color is HUD presentation that only READS existing friendly/aggro state (companion roster + enemy threat state + the interaction candidate the prompt system already resolves) — no AI behavior change, CH-31 stays the state owner; "dot" substring-hit CH-26 (their dot = damage-over-time ≠ dot shape) overridden; "color" had no literal keyword hit (CH-13.f3 companion/weapon material tints are a different surface — phase 4 menu scope ≠ phase 10 game-window scope) · est re-keyed: read 19.8 unchanged (same four files), out 13.6 → 14.8 (+1.2 for the one new open user feature), total 33.4 → 34.6 (GREEN ≤ 40k) · ch-40.keywords += crosshair, reticle color · denominator 120 → 121 (ch-40.f7); meta bumped to FLAT v2.1; plan.next unchanged = CH-07
+worklog.18.date = 2026-10-28
+worklog.18.event = ROUTING SESSION #5 — ENEMY COMBAT MANEUVERING & LOADOUTS (plan-only, no code shipped; routing-session pattern per worklog.5/15) — 6 user requests registered per ai.routing.rule + ai.new-chunk.rule, nothing lost, nothing parked: enemies actively USE cover → CH-41.1 · shielded enemies smart about their shields (face the threat, LoS-break to recharge, re-engage restored) → CH-41.2 · fast strafing in empty space → CH-41.3 · take-a-knee precision stance → CH-41.4 · enemies use various weapons (per-zone squad tables) → CH-41.5 · "too many enemies teleporting around" fixed + dash usable ONLY by elites → CH-41.6 (root-cause: dash misfiring on regular enemies; movement pinned to continuous interpolation) · grouped as NEW chunk CH-41 "enemy combat maneuvering & loadouts" in §08E phase 8 (NOT CH-30 weakpoint anatomy, NOT CH-31 threat detection; forcing CH-31 = 41.3k YELLOW) · keyword overrides documented (worklog.5 precedent): literal heuristic was a scattered 1-hit-each tie — "dash" CH-38 (player blink-dash augment ≠ enemy dash gating), "teleport" CH-12 (pause-menu navigation teleport ≠ enemy movement glitch), "weapon" CH-13/15/18/30 (first-id CH-13 equipment hub ≠ enemy loadout variety), "enemy" CH-31 ("find enemy" perception ≠ combat maneuvering), "elite" only on done CH-05 (never routed) — all overridden for scope · no "cover"/"shield"/"strafe"/"knee"/"precision" keyword hits anywhere · est: files enemy/assets/weapon/world → read 21.5, out 6.4+7.2=13.6, total 35.1 (GREEN ≤ 40k) · denominator 121 → 127 (ch-41.f1-6); phase.8.chunks += CH-41; meta bumped to FLAT v2.2; plan.next unchanged = CH-07 (CH-41 queues in global id order after CH-40 unless user-promoted via user.sort)
+worklog.19.date = 2026-10-28
+worklog.19.event = MINI ROUTING — COMPANION-DAMAGE HP BARS + SENTINEL PUNCH-THROUGH (2 user requests, plan-only, no code shipped; worklog.10/16/17 mini-routing precedent) — requests: (1) show enemy HP bars while being damaged by companions, even through walls → ch-31.f5; (2) sentinel weapons get 2 m punch-through → ch-31.f6 — both grouped into CH-31, the companion-AI chunk that already renders HP-bar behavior (f2 find-enemy blink) · keyword overrides documented (worklog.5 precedent): f5 strict winner CH-28 ("hp"+"bar" = 2 hits vs CH-31 "companion" 1) OVERRIDDEN for scope — CH-28's scope is floating/inline damage NUMBERS (its bar feature = numbers inside the bar), not bar visibility/attribution rules; the visibility CONDITION is companion damage attribution and CH-31's files (enemy.js/companions.js/hud.js) cover the hook without out-of-scope file touches (CH-28 files lack companions/enemy); f6 was a 1-hit-each tie — "sentinel" CH-31/CH-39, "weapon" CH-13/15/18/30 (first-id CH-13) — overridden for scope (CH-39 bond mods = clone spawning/contagion ≠ weapon stats; CH-13 = equipment menu; CH-31 owns companion behavior + has companions.js/mods.js in files) · tech notes pinned: through-wall bar = DOM overlay visibility flag (no new render pass), punch-through walks the CH-25 typed pipeline, clones inherit via the shared weapon table, innate value defers to existing per-weapon/mod punch rows (ASSUMPTION flagged in-text) · est re-keyed: read 21.3 unchanged (same five files), out 12.8 → 15.2 (+1.2 × 2 open user features), total 34.1 → 36.5 (GREEN ≤ 40k) · denominator 127 → 129 (ch-31.f5/f6); meta bumped to FLAT v2.3; plan.next unchanged = CH-07
+worklog.20.date = 2026-10-28
+worklog.20.event = MINI ROUTING — PAUSE-MENU REDESIGN KEEPS THE ORIGINAL XMB (1 user request, plan-only, no code shipped; worklog.10/16/17/19 mini-routing precedent) — request: "when it gets to redesigning the pause menu, keep original copy of xmb as a menu item" → ch-11.f4 ORIGINAL XMB MENU ITEM, the pause-menu shell chunk that builds the new top-level list (f2) and already holds the legacy-XMB custody line (f3 flag) · keyword sweep: STRICT WIN, no override — "pause"+"menu" = 2 hits on open CH-11; "xmb" appears ONLY on DONE CH-04 (done chunks never route) — ch-11.keywords += xmb, menu item so future XMB requests stop dead-hitting the closed chunk; CH-17 (the chunk scheduled to retire the legacy XMB) scored 0 keywords — handled as a cross-ref contract change, not a re-route · contract changes pinned: ch-11.f3 "flag until CH-17" amended (flag = interim dev path until the f4 menu item ships), ch-17.f1 "Retire the legacy XMB" struck in-text + ch-17.note added (rest of f1 unchanged: v0.10.0 bump · README · smoke checklist · frame-time) · tech notes: the menu item swaps the new shell for the UNTOUCHED legacy XMB (original copy, not a reskin), selection persists in the meta save (ac-meta-v3 idempotent, CH-40.6 pattern), no new files (the legacy XMB lives in index.html/hud.js/input.js — all already in ch-11.files) · est re-keyed: read 13.9 unchanged, out 11 → 12.2 (+1.2 × 1 open user feature), total 24.9 → 26.1 (GREEN ≤ 40k) · denominator 129 → 130 (ch-11.f4); meta bumped to FLAT v2.4; plan.next unchanged = CH-07
+worklog.21.date = 2026-10-28
+worklog.21.event = IMAGE-REFERENCE ROUTING SESSION — 5 BEAUTY-GOAL REFERENCE IMAGES (plan-only, no code shipped; worklog.15/18 routing-session pattern) — user: "eventually my goal is to create a beautiful slim character, aim down sights in third person, beautiful modern narrow hud design, intricate login screen, special pause menu, just like the images, scan images carefully extract every detail, find proper patch chunks, and add to work list" — all 5 images scanned detail-by-detail, every request registered, nothing parked: (1) SLIM CHARACTER (reference: narrow-waisted form-fitting rig, slender limbs, rounded helmet w/ red accent stripe, white/teal plates) → NEW chunk CH-42 "slim character" (f1 slim rig proportions · f2 material finish) in NEW phase block §08H phase 11 Beauty & presentation v0.17.0 — keyword sweep: "character" hits only CH-11 (pause-menu bust display), "frame" hits CH-13/15 (equipment menu / stat lists) — all menu-scope ≠ player-model mesh work, overridden for scope (worklog.5 precedent) → ai.new-chunk.rule (CH-41 precedent); (2) AIM DOWN SIGHTS THIRD PERSON (reference: over-shoulder camera w/ character left third, weapon lower-left, FOV zoom + edge blur, center "58.4m / 1.5x" readout, enemy HP bar top-right while aiming, bottom-right typed damage breakdown) → ch-22.f3 REFERENCE SPEC pinning the f1 "crosshair + ADS adaptation" clause — strict win ("third person"+"camera"+"over shoulder"), no override; interplay pinned: CH-27.f4 sniper scope mod stacks magnification, CH-40.7 reticle states ride the aim point; (3) MODERN NARROW HUD (reference: thin 1px rules, small-caps labels, corner clusters — top-right wallet/identity/companion roster, left-mid objective stack, right-mid NPC portrait card, bottom-right ammo cluster w/ mag bar + 4-slot ability arc, bottom-left log) → ch-40.f8 MODERN NARROW HUD RESTYLE — "hud" 1-1 tie vs CH-28 overridden for scope (CH-40 = the dedicated HUD presentation chunk); reference-only elements (4-player squad list, chat) flagged ASSUMPTION in-text; (4) INTRICATE LOGIN SCREEN (reference: starfield + constellation bg, ornate arched gold portrait frame, logo + subtitle, EMAIL/PASSWORD/LOGIN stack, footer chips, build stamp) → NEW chunk CH-43 "intricate login / title screen" (f1 title & login screen · f2 boot flow) — keyword sweep found ZERO hits ("screen" only inside CH-36 "loading screen" = extraction loading ≠ pre-game title) → ai.new-chunk.rule; ASSUMPTION pinned: no server/auth (static host) — form is a local profile ritual; (5) SPECIAL PAUSE MENU (reference: translucent left-stacked text menu over live scene, frame bust right, avatar + quick icons top-left, currencies top-right, bottom ticker, EXIT chip bottom-right) → ch-11.f5 REFERENCE STYLING — strict "pause"+"menu" win, no override; reference menu items without game equivalents (MARKET · OPERATOR · COMMUNICATION · QUESTS) NOT added (ASSUMPTION) · new §08H holds CH-42 (files player/textures/assets → read 10.8, out 4.6, total 15.4 GREEN) + CH-43 (files index/hud-css/main/textures → read 10.8, out 4.4, total 15.2 GREEN); est re-keyed: CH-22 out 11 → 12.2 / total 32.4 GREEN, CH-40 out 14.8 → 16.0 / total 35.8 GREEN, CH-11 out 12.2 → 13.4 / total 27.3 GREEN · keywords widened: ch-22 += aim down sights, ads, zoom · ch-40 += narrow, restyle · ch-11 += avatar, currency, ticker · phase.11 registered (§04), meta.next.version.bump += v0.17.0 at phase 11, section index += 08H · denominator 130 → 137 (ch-22.f3, ch-40.f8, ch-11.f5, ch-42.f1-2, ch-43.f1-2); meta bumped to FLAT v2.5; plan.next unchanged = CH-07
+worklog.22.date = 2026-10-28
+worklog.22.event = MINI ROUTING — CHARACTER NATURALNESS BAR (1 user request, plan-only, no code shipped; worklog.10/16/17/19/20 mini-routing precedent) — request: "when the 3d character design comes out, i want to make sure that surfaces and animations are as natural as they can be" → CH-42 grows by TWO quality-bar features: ch-42.f3 SURFACE NATURALNESS (matte/gloss balance per material family, roughness/albedo breakup so plates never read flat, scene-light ambient response, blended accent zones — pinned as the ACCEPTANCE BAR for f1+f2 at CH-42 execution time, so the quality ships WITH the character, not as a follow-up) + ch-42.f4 ANIMATION NATURALNESS (blended start/stop, weight-shifted idle with breathing sway, eased idle/run/aim/jump transitions, no foot-sliding, smooth tracking into the CH-22.3 over-the-shoulder ADS pose) · keyword overrides documented (worklog.5 precedent): NO literal keyword hit on any open chunk — "character design" ≠ CH-42's "character model" keyword, bare "character" hits CH-11's pause-menu bust scope (mismatch), "animation"/"surface"/"natural" hit nothing (ch-05.f1's "open animation" is DONE-chunk text, never routes) — routed by the user's own referent ("when the 3d character design comes out" names CH-42's deliverable) + scope ownership · contract amendment pinned: f4 amends f1's "no new animations" clause — same skeleton, no new bones still holds, naturalness polish (procedural pose blending) is added work · tech notes: surfaces via textures.js procedural noise/panel variation (no new atlases, no per-pixel hooks, no new render targets), motion via player.js pose blending (no per-frame allocations), all thresholds/blend weights tunable in assets, HD 3000 held · est re-keyed: read 10.8 unchanged (same three files), out 4.6 → 7.0 (+1.2 × 2 open user features), total 15.4 → 17.8 (GREEN ≤ 40k) · ch-42.keywords += surfaces, character animation, natural (future surface/animation-quality requests route here) · denominator 137 → 139 (ch-42.f3/f4); meta bumped to FLAT v2.6; plan.next unchanged = CH-07
+worklog.23.date = 2026-10-28
+worklog.23.event = IMAGE-REFERENCE ROUTING — WARFRAME VITRUVIAN OPAQUE-MENU THEME (1 user request + 1 reference image, plan-only, no code shipped; worklog.21 image-reference precedent) — request: "this is warframe vitruvian, i want to use this exact color scheme/design for any opaque menus in game, scan and notate carefully" → ch-11.f6 VITRUVIAN OPAQUE-MENU THEME on the pause-shell chunk · keyword sweep: STRICT WIN, no override — "warframe" + "menu" = 2 literal hits on open CH-11; "color" has no open-chunk hit (the reticle-color states are CH-40.7, a DONE-chunk feature, and HUD scope anyway); "vitruvian"/"scheme"/"opaque" hit nothing · image scanned detail-by-detail + PIL color-sampled (scripts/sample_vitruvian.py, 738×414): deep midnight-indigo field #1D1B2B with plum cast #252230 and near-black vignette #12101D; warm olive-gold wash #39302E glowing behind the central ornament; antique-gold line-work #908468 average stroke / #A69974 crisp diagram lines / #8A7F63 figure contours; cream hairlines #D6CBB2; near-white amber node glows #EBDFB5; composition: gold-contour Warframe figure right · symmetric calligraphic Orokin ornament center · branching node-and-line diagram (constellation-style tech tree) left · vertical glowing node rail between ornament and figure · faint pointed-arch/cathedral outlines across the whole field · scattered cross + arrow glyphs · script strips of fictional calligraphy — translated to menu language: 1px gold hairline rules, corner flourishes, branching tree = list/nav structure, cross/arrow = focus/expand markers, node rail = selection/progress spine, arches = bg texture, script strip = header decoration, small-caps gold labels + cream body, focus highlight = node-glow cream · scope ruling: the tokens bind the CH-11 shell (f1/f2/f5), ALL in-shell submenu pages (CH-12/13/14/15/16/28 — they render inside the shell and inherit), and the CH-43.1 title/login screen (cross-ref contract change via ch-43.note, ch-17.note precedent; soft dep — CH-43 may execute before CH-11 since the token VALUES live in the flat spec, no code dep); f4 ORIGINAL XMB EXEMPT (untouched legacy copy); HUD excluded (CH-40.8 game-window overlay ≠ a menu) — ASSUMPTION: "opaque menus" includes the translucent f5 shell (tint/chrome recolor, live scene still shows through) — confirm at patch time · tech: CSS vars in hud.css + procedural ornament canvas/sprites in textures.js (CH-36.f1 approach), DOM-only, zero per-frame cost, HD 3000 trivial · est re-keyed: files += textures.js (22,099 B, §03), read 13.9 → 16.8, out 13.4 → 14.6 (+1.2 × 1 open user feature), total 27.3 → 31.4 (GREEN ≤ 40k) · ch-11.keywords += vitruvian, color scheme, theme, opaque menu (future theme/skin requests route here) · denominator 139 → 140 (ch-11.f6); meta bumped to FLAT v2.7; plan.next unchanged = CH-07
