@@ -1,0 +1,2695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!--
+  basic_storefront.html — R Auto Parts · single-file working storefront (basic build)
+  ─────────────────────────────────────────────────────────────────────────────────
+  LOOK   : terminal window from the landing page prop (rautoparts — storefront / vendor · LIVE)
+  TRUTH  : configs.flat.txt + storefront.txt —
+           CFG constants §29 · tokens §02/03 (amber #f39a24 · gn/rd/bl · fg hierarchy) ·
+           sort modes §06 nav.sort.options (6) · sentinel 300px + lazy thumbs 200px §08 ·
+           PayPal cart §10 modal.paypal ·
+           webp pipeline 1200×800@.68 / 240×160@.55 §12 ed.imgpipeline ·
+           live search fields + instant filter §21 beh.search · schema.item §29 ·
+           single-file monolith §24 arch (no build, CDN allowlist: Font Awesome 6.5.1)
+  DATA   : B64 working folder is the database when run locally (file:// + showDirectoryPicker) —
+           per-item {id}_{title}.b64 packets (Pkt codec, payload v9) + latest.b64 manifest
+           autosaved on every change (storefront.txt DB module · configs §12 db.*);
+           folder handle remembered in IndexedDB 'storefront-b64' → session persists,
+           B64 button relinks on click (one permission prompt, no re-pick);
+           every vendor write is read-back verified + conflict-checked against disk;
+           STATIC DEPLOY (§21 data.static.* — ported from storefront.txt Static module): on
+           http(s) the catalog is fetched READ-ONLY from /src/ (cfg.SRC) — latest.b64 manifest
+           first (metadata + biz block), then per-item {id}_{title}.b64 packets on demand for
+           photos; writes stay local-only (File System API needs file://), so edit on the local
+           machine with the B64 folder linked and upload the folder contents to /src/;
+           without /src on the server (or offline) the build falls back to IndexedDB + seed
+           (legacy localStorage catalogs are migrated automatically — listings + photos live in
+           IndexedDB now, so the old "Storage full — try a smaller photo" quota error is gone);
+           browse state (search · sort · cards loaded · scroll position) is remembered, so the
+           browser back button and "back to {business}" land on the exact same view, empty
+           searches included;
+           business info (name · PayPal · phone/addr/hours · vendor password as salted hash)
+           lives in the latest.b64 manifest — header title + back button follow it live;
+           vendors type "out of stock" in the search bar to pull up OOS listings, plus a
+           show/hide OOS toggle in the vendbar;
+           refresh guard (configs §20 modal.refreshguard) asks for the vendor PIN before a
+           reload while vendor mode + B64 link are active.
+-->
+<title>R Auto Parts — storefront</title>
+<meta id="og-t" property="og:title" content="R Auto Parts — storefront">
+<meta id="og-d" property="og:description" content="Auto parts store">
+<meta property="og:type" content="website">
+<meta name="robots" content="index,follow">
+<script type="application/ld+json" id="ld-store">{"@context":"https://schema.org","@type":"Store","name":"R Auto Parts","description":"Auto parts store"}</script>
+<script type="application/ld+json" id="ld-item"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+/* ── tokens — configs §02 dark + landing mockwin surfaces ── */
+:root{
+  --am:#f39a24;--am2:#ffad3d;--amd:#a76a1c;--dim:rgba(243,154,36,.10);--ab:rgba(243,154,36,.35);
+  --gn:#5cb47e;--rd:#d96565;--bl:#7ba3d8;
+  --t1:#ececed;--t2:#a4a4a8;--t3:#6f6f73;
+  --bd:rgba(255,255,255,.06);--bd2:rgba(255,255,255,.12);
+  --win:#131313;--bar:#1d1d1d;--card:#242424;--img:#2b2b2b;--inp:#2a2a2a;
+  --buy:#2a2a2e;--buy-bd:rgba(243,154,36,.30);
+  --mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:#101012;color:var(--t1);font:400 14px/1.5 var(--mono);-webkit-font-smoothing:antialiased;
+  height:100vh;height:100dvh;display:flex;align-items:stretch;justify-content:stretch;padding:0;overflow:hidden;
+  -webkit-tap-highlight-color:transparent}
+::selection{background:rgba(243,154,36,.30);color:#fff}
+button{font-family:var(--mono);-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:1px solid var(--ab);outline-offset:1px}
+/* Ultra-Thin Minimal — configs §23 scrl.std.block, applied to every scrollable container */
+*{scrollbar-width:thin;scrollbar-color:#4b5563 #000000}
+*::-webkit-scrollbar{width:6px;height:6px}
+*::-webkit-scrollbar-track{background:#000000}
+*::-webkit-scrollbar-thumb{background:#4b5563;border-radius:3px}
+*::-webkit-scrollbar-thumb:hover{background:#6b7280}
+
+/* ── terminal window (landing .mockwin) ── */
+.mockwin{width:100%;max-width:none;height:100%;flex:1 1 auto;background:var(--win);
+  border:none;border-radius:0;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── title bar ── */
+.mw-bar{display:flex;align-items:center;gap:7px;padding:11px 14px;background:var(--bar);border-bottom:1px solid var(--bd);flex-shrink:0}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.dot.r{background:#ff5f56}.dot.y{background:#ffbd2e}.dot.g{background:#27c93f}
+.mw-title{margin-left:8px;background:none;border:none;padding:0;color:var(--t3);font:500 13px var(--mono);
+  cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:.02em;transition:color .15s}
+.mw-title:hover{color:var(--t2)}
+#tt-vend{transition:color .2s}
+body.vend #tt-vend{color:var(--am);font-weight:700}
+.mw-live{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font:700 11px var(--mono);
+  letter-spacing:.1em;text-transform:uppercase;color:var(--gn);flex:none;padding:3px 10px;border-radius:99px;border:1px solid transparent;transition:color .2s,background .2s,border-color .2s}
+.mw-live::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--gn);animation:livePulse 1.6s ease-in-out infinite alternate}
+.mw-live.off{color:var(--t3)}
+.mw-live.off::before{background:var(--t3);animation:none}
+/* mode badge: live (web) · vendor (File System API available) · vendor linked (B64 /src folder connected) */
+.mw-live.vendor{color:#ff9f1a;border-color:rgba(255,159,26,.55);background:rgba(255,159,26,.12)}
+.mw-live.vendor::before{background:#ff9f1a;animation:none}
+.mw-live.linked{color:#1a1206;background:#ff9f1a;border-color:#ff9f1a}
+.mw-live.linked::before{background:#1a1206;animation:none}
+@keyframes livePulse{from{opacity:.45}to{opacity:1}}
+
+/* ── window body + toolbar ── */
+.mw-body{flex:1;display:flex;flex-direction:column;min-height:0;background:linear-gradient(180deg,#202020,#1a1a1a);padding:12px}
+.mw-head{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-shrink:0}
+.mw-logo,.mw-sq{width:42px;height:42px;flex:none;border-radius:9px;background:var(--inp);border:1px solid var(--bd2);
+  display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;color:var(--t3);
+  transition:color .15s,border-color .15s,background .15s;position:relative;padding:0}
+.mw-logo{background:var(--dim);border-color:var(--ab);color:var(--am)}
+.mw-logo:hover{color:var(--am2);border-color:var(--am)}
+.mw-sq:hover{color:var(--t1);border-color:var(--ab);background:#303030}
+.mw-sq.am{color:var(--am);border-color:var(--ab)}
+.mw-sq.am:hover{background:var(--dim);color:var(--am2)}
+.sqwrap{position:relative;flex:none}
+.mw-search{flex:1;min-width:0;height:42px;border-radius:9px;background:var(--inp);border:1px solid var(--bd2);
+  display:flex;align-items:center;position:relative;transition:border-color .15s,background .15s}
+.mw-search:focus-within{border-color:var(--am);background:#242424}
+.mw-search>i{position:absolute;left:13px;font-size:14px;color:var(--t3);pointer-events:none}
+.mw-search input{flex:1;min-width:0;height:100%;background:transparent;border:none;outline:none;color:var(--t1);
+  font:400 15px var(--mono);padding:0 34px 0 38px}
+.mw-search input::placeholder{color:var(--t3)}
+#si-x{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--t3);
+  cursor:pointer;font-size:12px;padding:5px 7px;display:none;line-height:1}
+#si-x.show{display:block}
+#si-x:hover{color:var(--t1)}
+
+/* ── sort menu (configs §06 nav.sort.options — 6 modes) ── */
+.pop{display:none;position:absolute;top:calc(100% + 8px);right:0;min-width:196px;background:var(--card);
+  border:1px solid var(--bd2);border-radius:10px;padding:5px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.45)}
+.pop.on{display:block}
+.sp-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 13px;border-radius:7px;
+  color:var(--t2);font:500 13.5px var(--mono);cursor:pointer;white-space:nowrap}
+.sp-row:hover{background:var(--dim);color:var(--t1)}
+.sp-row .fa-check{font-size:9px;color:var(--am);visibility:hidden}
+.sp-row.on{color:var(--am);font-weight:700}
+.sp-row.on .fa-check{visibility:visible}
+.sp-hd{font:700 8.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--t3);padding:6px 11px 3px}
+
+/* ── vendor action bar (configs §12 — stats bar removed per vendor request) ── */
+#vendbar{display:none;gap:6px;margin-bottom:8px;flex-wrap:wrap;flex-shrink:0}
+#vendbar.on{display:flex}
+.vb{height:34px;padding:0 13px;background:var(--inp);border:1px solid var(--bd2);border-radius:8px;color:var(--t2);
+  font:600 12.5px var(--mono);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:7px;
+  transition:background .15s,color .15s,border-color .15s}
+.vb:hover{color:var(--t1);background:#303030}
+.vb:active{opacity:.7}
+.vb.am{color:var(--am);border-color:var(--ab);background:var(--dim)}
+.vb.am:hover{color:var(--am2)}
+.vb.gn{color:var(--gn);border-color:rgba(92,180,126,.4)}
+.vb.rd{color:var(--rd);border-color:rgba(217,101,101,.4)}
+/* detail-context vendor buttons (Edit/Sold/End/Delete) render inside the vendbar */
+#vbdet{display:contents}
+/* the bar doubles as the detail back-bar — customers see only the back button */
+body:not(.vend) .vend{display:none!important}
+
+#rline{display:none;font:400 13px var(--mono);color:var(--t3);margin:0 2px 7px;flex-shrink:0}
+#rline b{color:var(--am);font-weight:700}
+
+/* ── browse grid (landing .mw-grid / configs §07 desk 5-col) ── */
+.views{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden}
+.view{display:none}
+.view.on{display:block}
+#grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:2px 2px 12px}
+.mw-card{background:var(--card);border:1px solid var(--bd);border-radius:10px;overflow:hidden;cursor:pointer;
+  transition:transform .15s,border-color .15s}
+.mw-card:hover{transform:translateY(-2px);border-color:var(--ab)}
+.mw-card:active{transform:translateY(0)}
+.mw-card.ended{opacity:.55;border-style:dashed}
+.mw-cimg{aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;font-size:30px;color:#5d5d5d;background:var(--img)}
+.mw-cimg img{width:100%;height:100%;object-fit:contain;display:block}
+.mw-cbody{padding:11px 12px 13px}
+.mw-ct{font-size:14px;line-height:1.35;color:var(--t2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;overflow:hidden;margin-bottom:8px;min-height:2.7em}
+.mw-cp{font-size:19px;font-weight:700;color:var(--am);letter-spacing:-.01em}
+.mw-csku{font-size:12px;color:var(--t3);margin-top:4px;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oos{color:var(--rd)}
+
+/* infinite scroll (configs §08 state.*) */
+#loadMoreTrigger{height:24px;display:none;grid-column:1/-1}
+#loadingIndicator{display:none;text-align:center;padding:16px 12px;color:var(--t3);font-size:13px;grid-column:1/-1}
+#loadingIndicator::before{content:'';display:inline-block;width:14px;height:14px;border:2px solid var(--bd2);
+  border-top-color:var(--am);border-radius:50%;margin-right:8px;vertical-align:-2px;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#endOfList{display:none;text-align:center;padding:12px;color:var(--t3);font-size:12px;letter-spacing:.06em;
+  text-transform:uppercase;grid-column:1/-1}
+#endOfList::before,#endOfList::after{content:'—';color:var(--bd2);margin:0 8px}
+.empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:48px 16px;color:var(--t2)}
+.empty .ei{font-size:44px;opacity:.5}
+.empty .et{font-weight:700;font-size:17px}
+.empty .es{font-size:13px;color:var(--t3)}
+
+/* ── status bar — every number computed live ── */
+.mw-foot{display:flex;gap:14px;flex-wrap:wrap;align-items:center;padding:12px 16px 13px;flex-shrink:0;
+  font-size:12.5px;color:var(--t3);letter-spacing:.02em}
+.mw-foot b{color:var(--am);font-weight:700}
+
+/* ── detail view ── */
+.dwrap{display:grid;gap:22px;align-items:start;padding-bottom:16px}
+@media(min-width:900px){.dwrap{grid-template-columns:52% 1fr}}
+.dinfo{min-width:0}
+.dimg{aspect-ratio:3/2;background:var(--img);border:1px solid var(--bd);border-radius:10px;display:flex;
+  align-items:center;justify-content:center;font-size:72px;color:#5d5d5d;overflow:hidden}
+.dimg img{width:100%;height:100%;object-fit:contain;display:block}
+.dtitle{font-size:26px;font-weight:700;line-height:1.3;margin-bottom:12px}
+.dprice{font-size:32px;font-weight:700;color:var(--am);letter-spacing:-.01em}
+.dsku{font-size:17px;font-weight:700;color:var(--am);margin:6px 0 14px;letter-spacing:.02em}
+.dmeta{font-size:16px;color:var(--t2);line-height:1.9}
+.dmeta b{color:var(--t1);font-weight:500}
+.dline{font-size:14px;color:var(--t3);line-height:1.7;margin:14px 0 6px;border-top:1px solid var(--bd);padding-top:14px}
+#dbuy{width:100%;height:52px;margin-top:16px;background:var(--buy);border:1px solid var(--buy-bd);border-radius:8px;
+  color:var(--am);font:600 16px var(--mono);cursor:pointer;letter-spacing:.02em;transition:background .15s,border-color .15s,transform .1s}
+#dbuy:hover:not(:disabled){background:#34343a;border-color:var(--am)}
+#dbuy:active:not(:disabled){transform:scale(.98)}
+#dbuy:disabled{opacity:.4;cursor:not-allowed}
+.dend{background:rgba(217,101,101,.10);border:1px solid var(--rd);border-radius:8px;padding:8px 12px;margin-bottom:10px;
+  font-size:15px;font-weight:700;letter-spacing:.08em;color:var(--rd);text-transform:uppercase;text-align:center}
+
+/* ── modals (configs §10 modal system) ── */
+.mmod{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;display:none;align-items:center;justify-content:center;padding:16px}
+.mmod.onm{display:flex}
+.mbox{background:var(--bar);border:1px solid var(--bd2);border-radius:14px;width:100%;max-width:380px;padding:18px;max-height:calc(100dvh - 32px);overflow-y:auto}
+.mbox.wide{max-width:580px}
+.mbox h3{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--t2);margin-bottom:14px}
+.mbox h3 b{color:var(--am)}
+.mrow{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.mbtn{height:34px;padding:0 14px;background:var(--inp);border:1px solid var(--bd2);border-radius:8px;color:var(--t2);
+  font:600 11px var(--mono);cursor:pointer;transition:background .15s,color .15s}
+.mbtn:hover{color:var(--t1);background:#303030}
+.mbtn.pri{background:var(--dim);border-color:var(--ab);color:var(--am)}
+.mbtn.pri:hover{color:var(--am2);border-color:var(--am)}
+.fi{width:100%;background:var(--inp);border:1px solid var(--bd2);border-radius:8px;color:var(--t1);
+  font:400 12px var(--mono);padding:8px 10px;outline:none;transition:border-color .15s;min-width:0}
+.fi:focus{border-color:var(--am)}
+textarea.fi{resize:vertical;min-height:56px}
+select.fi{cursor:pointer;appearance:none}
+.flab{display:block;font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);margin:10px 0 4px}
+.flab .req{color:var(--rd)}
+.f2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chkrow{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11px;color:var(--t2);cursor:pointer}
+.chkrow input{accent-color:var(--am);width:14px;height:14px;cursor:pointer}
+#vpin{letter-spacing:.25em;text-align:center;font-size:14px}
+.imgprev{width:72px;height:48px;object-fit:contain;background:var(--img);border:1px solid var(--bd);border-radius:6px;display:none}
+.imgprev.has{display:block}
+
+/* basket */
+.bkrow{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd)}
+.bkrow:last-of-type{border-bottom:none}
+.bkinfo{flex:1;min-width:0}
+.bkt{font-size:11px;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bks{font-size:9px;color:var(--t3);letter-spacing:.03em}
+.bkqty{display:flex;align-items:center;gap:4px;flex:none}
+.bkqb{width:24px;height:24px;background:var(--inp);border:1px solid var(--bd2);border-radius:6px;color:var(--t2);
+  font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0}
+.bkqb:hover{color:var(--t1)}
+.bkq{width:34px;height:24px;background:var(--inp);border:1px solid var(--bd2);border-radius:6px;color:var(--t1);
+  font:400 11px var(--mono);text-align:center;outline:none}
+.bkp{font-size:11px;font-weight:700;color:var(--am);width:62px;text-align:right;flex:none}
+.bkrm{background:none;border:none;color:var(--rd);cursor:pointer;font-size:11px;padding:3px;flex:none}
+.bkrm:hover{color:#e88}
+.bktot{display:flex;justify-content:space-between;font-size:11px;color:var(--t2);padding:3px 0}
+.bktot.t{border-top:1px solid var(--bd2);margin-top:6px;padding-top:8px;font-size:13px;font-weight:700;color:var(--t1)}
+.bktot.t span:last-child{color:var(--am)}
+.bkempty{padding:26px 0;text-align:center;color:var(--t3);font-size:11px}
+
+/* toast (configs §20/anim.toast-storefront) */
+#toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(14px);opacity:0;z-index:200;
+  background:var(--card);border:1px solid var(--ab);color:var(--t1);font:500 11px var(--mono);
+  padding:9px 14px;border-radius:9px;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100vw - 32px)}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ── responsive (configs §05: mobile-first, 2-col grid <769px) ── */
+@media(max-width:768px){
+  body{padding:0;align-items:stretch}
+  .mockwin{width:100%;height:100dvh;border-radius:0;border:none}
+  #grid{grid-template-columns:1fr 1fr;gap:8px;padding:2px 2px 10px}
+  .mw-ct{font-size:14px}
+  .mw-cp{font-size:18px}
+  .dtitle{font-size:22px}
+  .dprice{font-size:28px}
+  .mmod.sheetm{align-items:flex-end;padding:0}
+  .mmod.sheetm .mbox{max-width:100%;border-radius:14px 14px 0 0;border-left:none;border-right:none;border-bottom:none}
+  .f2{grid-template-columns:1fr}
+}
+@media(max-width:560px){
+  .mw-foot{gap:10px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+/* ═══ ported storefront UI (modals · pending · packages · pickup · receipt) ═══ */
+.pill{height:28px;padding:0 10px;background:var(--bg3);border:1px solid var(--bd);border-radius:14px;color:var(--t2);font-size:11px;font-family:var(--mono);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;transition:background .15s,color .15s,border-color .15s}
+.pill:hover{background:var(--bg4);color:var(--t1)}
+.pill.on{border-color:var(--ab);color:var(--am);background:var(--dim)}
+#bkimgmod{position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.82);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:16px}
+#bkimgmod img{max-width:92vw;max-height:80vh;background:#fff;border-radius:6px;box-shadow:0 4px 28px rgba(0,0,0,.5)}
+#mxmod{position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.mx-box{background:var(--bg2);border:1px solid var(--bd2);border-radius:12px;padding:16px;width:100%;max-width:400px;color:var(--t1);font-family:var(--mono)}
+.mx-t{font-size:14px;font-weight:700;margin-bottom:6px}
+.mx-n{font-size:12px;color:var(--t2);margin-bottom:10px;line-height:1.5}
+.mx-f{margin-bottom:9px}.mx-f label{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
+.mx-f select,.mx-f input,.mx-f textarea{width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bd2);border-radius:6px;color:var(--t1);padding:7px 9px;font-size:13px;font-family:var(--mono)}
+.mx-b{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.mx-b .pill{flex:1}
+.stbadge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:10px;border:1px solid var(--bd2);margin-left:4px}
+.stbadge.pend{color:var(--am);border-color:var(--am)}.stbadge.oos{color:var(--rd);border-color:var(--rd)}
+.pendrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:4px;font-size:10px;color:var(--am)}
+.pendrow button{font-size:10px;padding:2px 8px;border-radius:12px;border:1px solid var(--bd2);background:var(--bg3);color:var(--t1);cursor:pointer}
+.pendrow button.ok{border-color:var(--gn);color:var(--gn)}.pendrow button.no{border-color:var(--rd);color:var(--rd)}.pendrow button.x{padding:0 7px;font-size:13px;line-height:16px}
+#pdmod{position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;padding:16px}
+.pd-box{max-width:640px;max-height:86vh;overflow:auto}
+.pd-row{display:flex;align-items:center;gap:10px;padding:8px;border:1px solid var(--bd);border-radius:8px;margin-bottom:6px;cursor:pointer;background:var(--bg3)}
+.pd-row:hover{border-color:var(--am)}.pd-row img,.pd-ph{width:56px;height:40px;object-fit:cover;border-radius:5px;background:var(--bg4);flex:none}
+.pd-i{flex:1;min-width:0}.pd-t{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pd-m{font-size:10px;color:var(--t3);margin-top:2px}
+.pd-x{border:1px solid var(--rd);color:var(--rd);background:transparent;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:14px;line-height:1;padding:0}
+/* package form */
+#pkform{position:fixed;inset:0;z-index:99996;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px}
+.pkf-box{background:var(--bg2);border:1px solid var(--bd2);border-radius:14px;padding:20px 24px;width:100%;max-width:860px;max-height:92vh;overflow:auto;color:var(--t1);font-family:var(--mono)}
+.pkf-h{display:flex;justify-content:space-between;align-items:center;font-size:16px;font-weight:800;margin-bottom:12px}
+.pkf-x{background:transparent;border:0;color:var(--t2);font-size:18px;cursor:pointer}
+.pkf-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:10px}.pkf-row .pkf-f{flex:1;min-width:130px}
+.pkf-f{margin-bottom:8px}.pkf-f label{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin-bottom:3px}
+.pkf-ro{padding:7px 9px;background:var(--bg3);border:1px solid var(--bd);border-radius:6px;font-size:13px}
+.pkf-f input{width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bd2);border-radius:6px;color:var(--t1);padding:8px 9px;font-size:14px;font-family:var(--mono)}
+.pkf-f input::placeholder{color:var(--t3);opacity:.55;font-style:italic}
+.pkf-f input.pkf-req{border:2px solid var(--gn)}.pkf-f input.pkf-req:not(.ok){border-style:dashed}.pkf-f input.pkf-req.ok{background:rgba(60,180,90,.18);border-style:solid}
+.pkf-hint{font-size:11px;color:var(--t3);margin:-2px 0 10px}
+.pkf-b{display:flex;gap:8px;margin-top:12px}.pkf-b .pill{flex:1;height:38px}
+.pkf-pend{border:1px solid var(--am);border-radius:8px;padding:8px;margin-bottom:12px;background:var(--dim)}
+.pkf-pt{font-size:11px;font-weight:700;color:var(--am);margin-bottom:6px}
+.pkf-po{display:flex;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--bd);border-radius:6px;margin-bottom:4px;cursor:pointer;font-size:12px;background:var(--bg2)}
+.pkf-po:hover{border-color:var(--am)}.pkf-po.sel{border-color:var(--gn);background:rgba(60,180,90,.15)}
+.pkf-pb{flex:1;color:var(--t3);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pkf-pd{color:var(--am);font-size:10px;white-space:nowrap}
+/* packages panel */
+#pumod{position:fixed;inset:0;z-index:99996;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px}
+.pu-box{background:var(--bg2);border:1px solid var(--bd2);border-radius:14px;padding:20px 24px;width:100%;max-width:900px;max-height:92vh;overflow:auto;color:var(--t1);font-family:var(--mono)}
+.pu-sec{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin:12px 0 6px}
+.pu-line{display:grid;grid-template-columns:70px 1fr 140px 150px 28px;gap:8px;align-items:center;padding:7px 8px;border:1px solid var(--bd);border-radius:7px;margin-bottom:5px;background:var(--bg3);font-size:13px}
+.pu-t{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pu-s{color:var(--t2);font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}
+.pu-q input{width:56px;background:var(--bg2);border:1px solid var(--bd2);border-radius:5px;color:var(--t1);padding:3px 5px}
+.pu-tot{text-align:right;font-weight:800;font-size:15px;margin:6px 4px}.pu-none{font-size:12px;color:var(--t3);padding:10px 4px}
+.pu-foot{margin-top:12px;font-size:10px;line-height:1.6;color:var(--t3);border-top:1px solid var(--bd);padding-top:8px}
+#pkmod{position:fixed;inset:0;z-index:99995;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:14px}
+#pkmod.on{display:flex}
+.pk-box{position:relative;background:var(--bg2);border:1px solid var(--bd2);border-radius:14px;width:min(1500px,98vw);height:calc(94*var(--uh,1vh));max-height:94vh;display:flex;flex-direction:column;color:var(--t1);font-family:var(--mono);overflow:hidden}
+.pk-top{display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--bd);flex-wrap:wrap}
+.pk-top b{font-size:15px;margin-right:6px}.pk-top input[type=search]{flex:1;min-width:200px;background:var(--bg3);border:1px solid var(--bd2);border-radius:6px;color:var(--t1);padding:7px 10px;font-size:13px}
+.pk-top input[type=date]{background:var(--bg3);border:1px solid var(--bd2);border-radius:6px;color:var(--t1);padding:6px 8px;font-size:12px}
+.pk-main{flex:1;min-height:0;display:flex}
+#pk-side{display:none;width:330px;flex:none;border-right:1px solid var(--bd);padding:14px;overflow:auto;position:relative}
+#pk-side.on{display:block}
+.pk-sx{position:absolute;top:6px;right:8px;background:transparent;border:0;color:var(--t2);cursor:pointer;font-size:15px}
+.pk-img{width:100%;border-radius:8px;display:block;background:var(--bg3);min-height:60px}.pk-img.ph{display:flex;align-items:center;justify-content:center;height:140px;color:var(--t3);font-size:12px}
+.pk-st{font-size:13px;font-weight:700;margin:8px 0 2px}.pk-or{font-size:11px;color:var(--t3);margin-bottom:8px}
+.pk-ck{list-style:none;padding:0;margin:0 0 8px;font-size:13px}.pk-ck li{padding:2px 0}.pk-ck li.ok{color:var(--gn)}.pk-ck li.no{color:var(--rd)}
+.pk-ls{font-size:12px;margin-bottom:10px}.pk-ac{display:flex;flex-direction:column;gap:6px;margin-bottom:10px}
+#pk-tbl{flex:1;min-width:0;overflow:auto;position:relative}
+.pk-t{width:100%;border-collapse:collapse;font-size:15px}
+.pk-t th small{display:block;font-size:9px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--t3)}
+.pk-t th{position:sticky;top:0;background:var(--bg3);text-align:left;padding:8px 10px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--t3);border-bottom:1px solid var(--bd);z-index:1}
+.pk-t td{padding:10px 10px;border-bottom:1px solid var(--bd);vertical-align:middle}.pk-t .n{text-align:right;white-space:nowrap}
+.pk-r{cursor:pointer}.pk-r:hover{background:var(--bg3)}.pk-r.sel{background:var(--dim)}.pk-r.done td{opacity:.5;text-decoration:line-through}
+.pk-r.pkp{background:rgba(70,140,255,.13);box-shadow:inset 4px 0 0 #4a8cff}.pk-r.pkp:hover{background:rgba(70,140,255,.22)}
+.stbadge.pku{color:#4a8cff;border-color:#4a8cff}
+.pk-ti{max-width:340px}.pk-ed{cursor:text;min-width:60px}.pk-ed:hover{outline:1px dashed var(--am)}
+.pk-in{width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--am);border-radius:4px;color:var(--t1);padding:4px 6px;font-size:15px}
+.pk-po{cursor:pointer;color:var(--am);font-weight:700;white-space:nowrap}
+.pk-st.link{cursor:pointer;color:var(--am);text-decoration:underline}
+.pk-st{font-size:15px}
+.pk-ck{font-size:15px}.pk-ls,.pk-or{font-size:13px}
+#pk-foot{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 14px;border-top:1px solid var(--bd);font-size:11px;color:var(--t3);background:var(--bg3)}
+.pk-step{position:relative;padding:3px 9px;border:1px solid var(--bd2);border-radius:12px;color:var(--t1);cursor:help}
+.pk-step:hover::after,.pk-step:focus::after{content:attr(data-t);position:absolute;bottom:calc(100% + 8px);left:0;width:270px;white-space:normal;background:var(--bg2);border:1px solid var(--am);color:var(--t1);padding:7px 9px;border-radius:7px;font-size:11px;line-height:1.5;z-index:10;box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.pk-arr{color:var(--t3)}.pk-fn{margin-left:auto;color:var(--am);font-weight:600}
+.pkf-ed{border:1px solid var(--bd2);background:var(--bg3);color:var(--t1);border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:11px;padding:0;flex:none}
+.pkf-sold{border-color:var(--gn)}.pkf-sold .pkf-pt{color:var(--gn)}
+.pd-q{width:100%;box-sizing:border-box;background:var(--bg3);border:1px solid var(--bd2);border-radius:6px;color:var(--t1);padding:7px 10px;font-size:13px;margin-bottom:8px}
+.pd-sec{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--t3);margin:10px 0 6px}
+.pd-none{font-size:11px;color:var(--t3);padding:4px 2px}
+.cvst{margin-top:5px;font-size:10px;font-weight:800;letter-spacing:.04em;color:var(--rd);border:1px dashed var(--rd);border-radius:5px;padding:3px 6px;line-height:1.35}
+.cvst i{display:block;font-weight:400;font-style:normal;color:var(--t3);letter-spacing:0}
+.pk-del{border:1px solid var(--rd);color:var(--rd);background:transparent;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:12px;line-height:1;padding:0}
+#pk-more{padding:12px;text-align:center;color:var(--t3);font-size:11px}
+#pk-up{display:none;position:absolute;right:22px;bottom:18px;z-index:3;border:1px solid var(--bd2);background:var(--bg3);color:var(--t1);border-radius:20px;padding:6px 14px;font-size:12px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+#pk-up.on{display:block}
+@media(max-width:768px){.pk-main{flex-direction:column}#pk-side{width:auto;max-height:45%;border-right:0;border-bottom:1px solid var(--bd)}}
+:root{--bg:#101012;--bg2:#1d1d1d;--bg3:#242424;--bg4:#2b2b2b;--bg5:#34343a;--fn:var(--mono);--r:8px}
+.vb.gn{color:var(--gn);border-color:rgba(92,180,126,.4)}
+.vb .abn{margin-left:5px;font-weight:700;color:var(--am)}
+.abn:empty{display:none}
+.bchip{display:inline-flex;align-items:center;gap:6px;margin-left:8px;padding:1px 9px;border:1px solid var(--ab);border-radius:12px;color:var(--am);background:var(--dim);cursor:pointer;font-size:12px}
+.bchip:hover{border-color:var(--am)}
+#brandpop{max-height:60vh;overflow-y:auto}
+.sp-row .bn{margin-left:auto;padding-left:10px;color:var(--t3);font-size:11px}
+.dvst{margin:10px 0 2px;font-size:13px;color:var(--t2)}.dvst b{color:var(--am)}
+.dvst.sold{color:var(--gn)}.dvst.sold b{color:var(--gn)}
+.dpol{border:1px solid var(--bd2);border-radius:10px;background:var(--card);margin:6px 2px 14px;overflow:hidden}
+.dpol-hd{display:flex;justify-content:space-between;align-items:center;padding:11px 16px;cursor:pointer;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--t2)}
+.dpol-hd i{transition:transform .15s}.dpol.min .dpol-hd i{transform:rotate(-90deg)}.dpol.min .dpol-bd{display:none}
+.dpol-bd{padding:2px 18px 16px;font-size:13px;line-height:1.7;color:var(--t1)}
+.dpol-bd h4{font-size:12px;letter-spacing:.07em;color:var(--am);margin:12px 0 2px}.dpol-bd p{margin:0 0 4px;color:var(--t2)}
+.dmore{margin:6px 2px 24px;padding:16px 12px 18px;border:1px solid var(--bd);border-radius:12px;background:var(--bar)}
+.dmore-l{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--t3);margin:0 0 12px 4px}
+.dmore-g{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+@media(max-width:768px){.dmore-g{grid-template-columns:1fr 1fr;gap:8px}.dmore-g .mw-card:nth-child(n+7){display:none}}
+#pkmod .pill,#pdmod .pill,#pumod .pill,#pkform .pill,#mxmod .pill{font-family:var(--mono)}
+.pk-box{font-family:var(--mono)}
+#bkimgmod{z-index:100001!important}
+
+</style>
+</head>
+<body>
+
+<div class="mockwin" role="application" aria-label="R Auto Parts storefront">
+
+  <!-- title bar — vendor entry lives here (click the title) -->
+  <div class="mw-bar">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <button class="mw-title" id="tt" onclick="Vnd.gate()" title="rautoparts — click for vendor access"></button>
+    <span class="mw-live" id="live">live</span>
+  </div>
+
+  <div class="mw-body">
+
+    <!-- toolbar: logo · live search · sort · basket -->
+    <div class="mw-head">
+      <button class="mw-logo" onclick="Browse.reset()" title="store home — back to the main page, clears search, brand and sort"><i class="fa-solid fa-car"></i></button>
+      <div class="mw-search">
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+        <input id="si" placeholder="brake pads, alternators, filters…" autocomplete="off" spellcheck="false"
+               oninput="Browse.search(this.value)" aria-label="Search listings">
+        <button id="si-x" onclick="Browse.clearSearch()" title="Clear search" aria-label="Clear search"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="sqwrap">
+        <button class="mw-sq" id="sortbtn" onclick="SortMenu.toggle(event)" title="Sort — 6 modes"><i class="fa-solid fa-table-list"></i></button>
+        <div class="pop" id="sortpop" role="menu"></div>
+      </div>
+      <div class="sqwrap">
+        <button class="mw-sq" id="brandbtn" onclick="Browse.brandMenu(event)" title="Browse by brand"><i class="fa-solid fa-tags"></i></button>
+        <div class="pop" id="brandpop" role="menu"></div>
+      </div>
+      <div class="sqwrap">
+        <button class="mw-sq am" onclick="Basket.open()" title="Basket"><i class="fa-solid fa-basket-shopping"></i><span class="baskn" id="baskn"></span></button>
+      </div>
+    </div>
+
+    <!-- toolbar — detail back button + vendor strip (configs §12); detail buttons mount into #vbdet -->
+    <div id="vendbar">
+      <button class="vb" id="vbback" onclick="Det.close()" style="display:none" title="Back to the store">
+        <i class="fa-solid fa-arrow-left"></i> back to <b id="vbbn">rautoparts</b></button>
+      <span class="vend" style="display:contents">
+        <button class="vb am" onclick="Ed.open()" title="Add a new listing"><i class="fa-solid fa-plus"></i> New</button>
+        <button class="vb" onclick="Vnd.exportJSON()" title="Download all listings as JSON"><i class="fa-solid fa-download"></i> Export</button>
+        <button class="vb rd" id="b64btn" onclick="DB.pick()" title="Link B64 folder (required to add/edit listings)"><i class="fa-solid fa-database"></i> B64</button>
+        <button class="vb" id="bibtn" onclick="Biz.open()" title="Business name · PayPal address · hours · vendor password — saved to latest.b64"><i class="fa-solid fa-address-card"></i> Business Info</button>
+        <button class="vb" id="pend-btn" onclick="Sx.panel()" title="Pending sold and recently sold orders"><i class="fa-solid fa-hourglass-half"></i> Pending<span id="pend-n" class="abn"></span></button>
+        <button class="vb" id="pk-btn" onclick="Pk.open()" title="Packages list (packages.b64)"><i class="fa-solid fa-boxes-packing"></i> Packages</button>
+        <span id="vbdet"></span>
+        <span style="flex:1"></span>
+        <button class="vb" id="oosbtn" onclick="Browse.toggleOos()" title="Show or hide out-of-stock listings"><i class="fa-solid fa-eye"></i> OOS shown</button>
+        <button class="vb" onclick="Vnd.logout()" title="End vendor session"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
+      </span>
+    </div>
+
+    <div id="rline"></div>
+
+    <!-- views -->
+    <div class="views" id="views">
+      <div id="view-browse" class="view on"><div id="grid"></div></div>
+      <div id="view-detail" class="view"></div>
+    </div>
+
+  </div>
+
+  <!-- status bar — all numbers computed from live data -->
+  <div class="mw-foot" id="mwfoot"></div>
+
+</div>
+
+<!-- ── vendor gate (configs §10 modal.vendor-auth · CFG.PASS §29) ── -->
+<div class="mmod" id="vmod">
+  <div class="mbox" style="max-width:320px">
+    <h3><b>vendor</b> access</h3>
+    <input class="fi" id="vpin" type="password" inputmode="numeric" placeholder="PIN" maxlength="24"
+           onkeydown="if(event.key==='Enter')Vnd.login()" aria-label="Vendor PIN">
+    <div class="mrow">
+      <button class="mbtn" onclick="Vnd.closeGate()">Cancel</button>
+      <button class="mbtn pri" onclick="Vnd.login()"><i class="fa-solid fa-lock"></i> Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── listing editor (basic subset of configs §12 ed.fields) ── -->
+<div class="mmod" id="emod">
+  <div class="mbox wide">
+    <h3 id="edtitle"><b>new</b> listing</h3>
+    <label class="flab">Title <span class="req">*</span></label>
+    <input class="fi" id="f-title" maxlength="75" placeholder="e.g. Ceramic Brake Pads — Front Pair">
+    <div class="f2">
+      <div><label class="flab">Price USD <span class="req">*</span></label><input class="fi" id="f-price" type="number" min="0" step="0.01" placeholder="0.00"></div>
+      <div><label class="flab">Stock qty</label><input class="fi" id="f-stock" type="number" min="0" step="1" placeholder="0"></div>
+      <div><label class="flab">Stock # / SKU</label><input class="fi" id="f-sku" placeholder="BATT-68AH"></div>
+      <div><label class="flab">Category</label><input class="fi" id="f-cat" placeholder="Brakes"></div>
+      <div><label class="flab">Part #</label><input class="fi" id="f-part" placeholder="D1234"></div>
+      <div><label class="flab">Bin loc</label><input class="fi" id="f-loc" placeholder="D1-01"></div>
+      <div><label class="flab">Interchange</label><input class="fi" id="f-int" placeholder="nums separated by space"></div>
+      <div><label class="flab">Brand</label><input class="fi" id="f-brand" placeholder="StopSure"></div>
+      <div><label class="flab">Condition</label>
+        <select class="fi" id="f-cond">
+          <option value="new">New</option><option value="used">Used</option>
+          <option value="refurbished">Refurbished</option><option value="damaged">Damaged / Parts</option>
+        </select></div>
+      <div><label class="flab">Shipping USD</label><input class="fi" id="f-ship" type="number" min="0" step="0.01" placeholder="0.00"></div>
+      <div><label class="flab">Weight lbs</label><input class="fi" id="f-wt" placeholder="2.5"></div>
+      <div><label class="flab">Size L x W x H</label><input class="fi" id="f-dim" placeholder="16x12x8"></div>
+      <div><label class="flab">Initials</label><input class="fi" id="f-init" maxlength="2" placeholder="AB"></div>
+    </div>
+    <label class="flab">Card icon</label>
+    <select class="fi" id="f-icon"></select>
+    <label class="flab">Photo (auto-resized to 1200×800 webp + 240×160 thumb)</label>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="fi" id="f-img" type="file" accept="image/*" style="padding:6px">
+      <img class="imgprev" id="f-prev" alt="">
+      <button class="mbtn" id="f-imgx" onclick="Ed.clearImg()" style="display:none">✕</button>
+    </div>
+    <label class="flab">Short description</label>
+    <textarea class="fi" id="f-desc" placeholder="One-liner shown on the detail page"></textarea>
+    <label class="chkrow"><input type="checkbox" id="f-oos"> Out of stock (hidden from customers)</label>
+    <div class="mrow">
+      <button class="mbtn" onclick="Ed.close()">Cancel</button>
+      <button class="mbtn pri" onclick="Ed.save()"><i class="fa-solid fa-check"></i> Save listing</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── business info (vendor) — saved into the latest.b64 manifest · header + back button follow the name ── -->
+<div class="mmod" id="bimod">
+  <div class="mbox">
+    <h3><b>business</b> info</h3>
+    <label class="flab">Store / business name <span class="req">*</span></label>
+    <input class="fi" id="bi-name" maxlength="48" placeholder="R Auto Parts">
+    <label class="flab">PayPal address (checkout payments go here)</label>
+    <input class="fi" id="bi-pp" type="email" placeholder="payments@rapautoparts.com">
+    <div class="f2">
+      <div><label class="flab">Phone</label><input class="fi" id="bi-phone" placeholder="(555) 010-2233"></div>
+      <div><label class="flab">Address</label><input class="fi" id="bi-addr" placeholder="1400 Main St, Dallas TX"></div>
+    </div>
+    <label class="flab">Business hours</label>
+    <input class="fi" id="bi-hours" placeholder="Mon–Fri 9am–5pm · Sat 10am–3pm">
+    <label class="flab">Specializes in</label>
+    <input class="fi" id="bi-spec" placeholder="Brakes, batteries, cooling systems">
+    <div class="f2">
+      <div><label class="flab">Returns</label><input class="fi" id="bi-returns" placeholder="30-day returns"></div>
+      <div><label class="flab">Handling time</label><input class="fi" id="bi-handling" placeholder="1 business day"></div>
+      <div><label class="flab">Shipping service</label><input class="fi" id="bi-svc" placeholder="USPS Ground Advantage"></div>
+      <div><label class="flab">Delivery estimate</label><input class="fi" id="bi-eta" placeholder="2-4 business days"></div>
+    </div>
+    <label class="flab">Store policy (shown under every item page, blank = default policy)</label>
+    <textarea class="fi" id="bi-policy" rows="5" placeholder="ALL SALES ARE FINAL. ... RETURNS ... SHIPPING ..."></textarea>
+    <label class="flab">Vendor password — leave blank to keep the current one</label>
+    <div class="f2">
+      <div><label class="flab">New password</label><input class="fi" id="bi-pw1" type="password" autocomplete="new-password" placeholder="min 4 characters"></div>
+      <div><label class="flab">Repeat it</label><input class="fi" id="bi-pw2" type="password" autocomplete="new-password"></div>
+    </div>
+    <div class="mrow">
+      <button class="mbtn" onclick="Biz.close()">Cancel</button>
+      <button class="mbtn pri" onclick="Biz.save()"><i class="fa-solid fa-check"></i> Save to latest.b64</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── basket (configs §10 modal.sheet.basket — bottom sheet mobile / centered desk) ── -->
+<div class="mmod sheetm" id="bkmod" onclick="if(event.target===this)Basket.close()">
+  <div class="mbox" style="max-width:430px">
+    <h3><b>basket</b> · <span id="bk-count">0</span> item(s)</h3>
+    <div id="bklist" style="max-height:44dvh;overflow-y:auto"></div>
+    <div style="margin-top:10px">
+      <div class="bktot"><span>Items</span><span id="bk-sub">$0.00</span></div>
+      <div class="bktot"><span>Shipping</span><span id="bk-ship">$0.00</span></div>
+      <div class="bktot t"><span>Total</span><span id="bk-tot">$0.00</span></div>
+    </div>
+    <div class="mrow" style="margin-top:12px">
+      <button class="mbtn" onclick="Basket.clear()">Clear</button>
+      <button class="mbtn pri" onclick="Basket.checkout()" id="bk-go"><i class="fa-solid fa-basket-shopping"></i> Checkout</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── refresh guard (configs §20 modal.refreshguard — armed while vendor + B64 linked) ── -->
+<div class="mmod" id="rgmod">
+  <div class="mbox" style="max-width:320px">
+    <h3><b>refresh</b> page?</h3>
+    <p style="font:400 11px/1.6 var(--mono);color:var(--t2);margin:-6px 0 10px">Your link to the B64 folder is lost when the page reloads. Enter the vendor PIN to confirm the refresh.</p>
+    <input class="fi" id="rgpin" type="password" inputmode="numeric" placeholder="PIN" maxlength="24"
+           style="letter-spacing:.25em;text-align:center;font-size:14px"
+           onkeydown="if(event.key==='Enter')RefreshGuard.confirm()" aria-label="Vendor PIN">
+    <div class="mrow">
+      <button class="mbtn" onclick="RefreshGuard.cancel()">Stay</button>
+      <button class="mbtn" onclick="RefreshGuard.confirm()" style="color:var(--rd);border-color:rgba(217,101,101,.4)"><i class="fa-solid fa-rotate-right"></i> Refresh Page</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<form id="ppform" target="_blank" method="post" action="https://www.paypal.com/cgi-bin/webscr" style="display:none"></form>
+
+<script>
+'use strict';
+/* ═══ CFG — editable constants (configs.flat.txt §29 + storefront head block) ═══ */
+const PAYPAL_EMAIL='';                 // cfg.PP_EMAIL — checkout disabled until set
+const STORE_NAME='R Auto Parts';       // cfg.NAME
+const CFG={
+  NAME:STORE_NAME, PP_EMAIL:PAYPAL_EMAIL, PP_CUR:'USD',
+  PASS:'password',                     // cfg.PASS — default vendor PIN (Business Info can change it)
+  PASS_HASH:'',PASS_SALT:'',           // salted-hash override kept in latest.b64 (empty = use PASS)
+  IW:1200,IH:800,IQ:.68,               // §12 ed.imgpipeline main image
+  TW:240,TH:160,TQ:.55,                // §12 thumbnail
+  PER_PAGE:12,                         // storefront Browse perPage
+  SRC:'src',                           // cfg.SRC — static-deploy data folder (configs §21 data.static.*):
+                                       // on http(s) the catalog loads from <site>/src/ — latest.b64
+                                       // manifest + {id}_{title}.b64 packets (storefront.txt Static)
+  DEFAULT_BROWSE_SORT:'new',           // cfg.DEFAULT_BROWSE_SORT — newest first
+  SCROLL_MARGIN:'300px',               // §08 state.sentinel.observer
+  THUMB_MARGIN:'200px',                // §07 card.lazyload observer
+  RETURNS:'30-day returns',HANDLING:'1 business day',
+  SVC:'USPS Ground Advantage',ETA:'2-4 business days'
+};
+/* §06 nav.sort.options — exactly the storefront's 6 browse sorts */
+const SORTS=[['new','Newest'],['pa','Price ↑'],['pd','Price ↓'],['az','A–Z'],['szd','Stock Z-A'],['edited','Edited Z-A']];
+/* vendor stats bar removed per vendor request — stats() still feeds the status bar + LIVE badge */
+/* card icon palette for the editor */
+const ICONS=['fa-car-battery','fa-oil-can','fa-fan','fa-bolt','fa-filter','fa-compact-disc','fa-fire','fa-plug',
+ 'fa-circle-notch','fa-link','fa-wind','fa-temperature-low','fa-temperature-half','fa-droplet','fa-snowflake',
+ 'fa-lightbulb','fa-power-off','fa-gears','fa-cloud-rain','fa-clone','fa-compress','fa-ruler-horizontal',
+ 'fa-circle-dot','fa-gas-pump','fa-door-open','fa-cube'];
+const COND={new:'New',used:'Used',refurbished:'Refurbished',damaged:'Damaged / Parts'};
+
+const E=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const $=id=>document.getElementById(id);
+let slug=CFG.NAME.toLowerCase().replace(/[^a-z0-9]+/g,'')||'store'; /* recomputed by Biz.paint() on business info */
+const money=n=>'$'+(+n||0).toFixed(2);
+
+let _tt;
+function Toast(m,ms){const el=$('toast');el.textContent=m;el.classList.add('on');clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove('on'),ms||2600)}
+
+/* salted password hash — SHA-256 where the context allows it, deterministic fallback otherwise;
+   the same function runs at set-time (Business Info) and check-time (login / refresh guard) */
+async function hashPw(pw,salt){
+  const s=String(salt||'')+'::'+String(pw==null?'':pw);
+  try{
+    if(window.crypto&&crypto.subtle&&crypto.subtle.digest){
+      const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));
+      return[...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+    }
+  }catch(e){}
+  let h1=5381,h2=52711;
+  for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);h1=((h1*33)^c)>>>0;h2=((h2*31)+c)>>>0}
+  return 'x'+h1.toString(16)+h2.toString(16);
+}
+
+/* ═══ SEED CATALOG — real listings; first five match the reference shot (newest first) ═══
+   schema.item §29 (trimmed basic subset) */
+function seed(){
+  const D=864e5,n=Date.now();let k=45;const ts=()=>n-(k--)*D;
+  const I=(id,title,price,sku,stock,category,partNum,loc,interchange,brand,cond,icon,cr,extra)=>(
+    Object.assign({id,title,price,sku,stock,category,partNum,loc,interchange,brand,condition:cond,icon,
+      created:n-cr*D,updated:n-cr*D,status:'active',oos:false,soldQty:0,images:[],thumbs:[],seed:true},extra||{}));
+  return[
+    I(31,'Car Battery 12V 68Ah — Group 48',119.00,'BATT-68AH',8,'Electrical','P48-68AGM','A1-04','48 48AGM H5','Volta','new','fa-car-battery',2),
+    I(30,'SAE 5W-30 Full Synthetic Motor Oil — 1 Qt',8.49,'OIL-5W30',40,'Fluids','5W30-QT1','A2-11','5W30 GF6','LubriMax','new','fa-oil-can',3),
+    I(29,'Radiator Cooling Fan Assembly',64.00,'FAN-RAD2',5,'Cooling','FAN-2247','B3-02','2247 621-220','AeroFlow','used','fa-fan',5),
+    I(28,'Alternator 120A — Remanufactured',89.00,'ALT-120A',6,'Electrical','ALT-13973','B1-07','13973 8307 334-2110','VoltCore','refurbished','fa-bolt',6),
+    I(27,'Engine Air Filter',12.50,'FLT-A330',25,'Filters','A330-ENG','C2-05','A330 CA9831','AirGuard','new','fa-filter',7),
+    I(26,'Ceramic Brake Pads — Front Pair',34.99,'BRK-PADF',14,'Brakes','CD1234-F','D1-01','D1234','StopSure','new','fa-compact-disc',8),
+    I(25,'Brake Rotor — Rear',52.00,'BRK-ROTR',10,'Brakes','BR5402','D1-03','BR5402 580213R','StopSure','new','fa-compact-disc',9),
+    I(24,'Alternator 160A High Output',129.00,'ALT-160A',0,'Electrical','ALT-160HO','B1-08','160HO','VoltCore','new','fa-bolt',10,{oos:true}),
+    I(23,'Iridium Spark Plug',7.25,'SPK-IR6',60,'Ignition','IR6-9412','E1-09','9412 ILZKR7B11','SparkPro','new','fa-fire',11),
+    I(1,'Door Handle Exterior — Left',22.00,'DOR-LH1',3,'Exterior','DH-80670','F2-08','80670','ClearVue','used','fa-door-open',40,{status:'ended',endReason:'ended',ended:n-9*D})
+  ];
+}
+
+/* placeholder listings (seed) are dropped the moment real b64 data is pulled — from /src (deployed) or the linked folder */
+const SEEDSIG=new Set(seed().map(i=>i.id+'|'+i.sku));
+function purgeSeed(){const n=ITEMS.length;ITEMS=ITEMS.filter(i=>!(i&&(i.seed||SEEDSIG.has(i.id+'|'+i.sku))));return n-ITEMS.length}
+window._b64Loaded=false; /* true once real b64 data (manifest or folder scan) has been read */
+/* ═══ STORE — listing + photo persistence (IndexedDB, localStorage fallback) ═══
+   Photos blew through the ~5MB localStorage quota ("Storage full — try a smaller photo"),
+   so the catalog now lives in IndexedDB (hundreds of MB available). localStorage keeps only
+   tiny keys (basket · business info · flags) and serves as the legacy fallback: an existing
+   bs_items_v1 catalog is migrated into IndexedDB on first boot, then removed to free quota. */
+const LS={
+  KI:'bs_items_v1',KB:'bs_basket_v1',
+  load(k){try{const v=JSON.parse(localStorage.getItem(k));return v&&typeof v==='object'?v:null}catch{return null}},
+  save(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch{Toast('Storage full — try a smaller photo',3600);return false}}
+};
+/* tiny IndexedDB key/value layer — same pattern as the B64 folder-handle store ('storefront-b64') */
+const Store=(()=>{
+  const DBN='bs_store_v1',ST='kv',ok=('indexedDB' in window);
+  let _db=null;
+  function db(){
+    if(!ok)return Promise.reject(new Error('IndexedDB unavailable'));
+    if(_db)return _db;
+    _db=new Promise((res,rej)=>{
+      const r=indexedDB.open(DBN,1);
+      r.onupgradeneeded=()=>{try{r.result.createObjectStore(ST)}catch(e){}};
+      r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);
+    });
+    _db.catch(()=>{_db=null}); /* a failed open must not poison later retries */
+    return _db;
+  }
+  async function get(k){const d=await db();return await new Promise((res,rej)=>{
+    const q=d.transaction(ST).objectStore(ST).get(k);
+    q.onsuccess=()=>res(q.result===undefined?null:q.result);q.onerror=()=>rej(q.error)})}
+  async function set(k,v){const d=await db();await new Promise((res,rej)=>{
+    const t=d.transaction(ST,'readwrite');t.objectStore(ST).put(v,k);
+    t.oncomplete=res;t.onerror=()=>rej(t.error)})}
+  /* boot loader: IndexedDB catalog → legacy localStorage catalog (migrated once) → seed */
+  async function loadItems(){
+    let arr=null;
+    if(ok){try{const v=await get('items');if(Array.isArray(v))arr=v}catch(e){}}
+    if(!Array.isArray(arr)||!arr.length){
+      const l=LS.load(LS.KI);
+      if(Array.isArray(l)&&l.length){
+        arr=l;
+        if(ok){try{await set('items',arr);localStorage.removeItem(LS.KI)}catch(e){}}
+      }
+    }
+    return Array.isArray(arr)&&arr.length?arr:seed();
+  }
+  return{ok:()=>ok,get,set,loadItems};
+})();
+let ITEMS=seed(); /* placeholder until boot replaces it with the stored catalog */
+/* every write is serialized and snapshots the live ITEMS at run time; IndexedDB first,
+   localStorage only as the last-resort fallback (its quota toast fires there, as before) */
+let _saveQ=Promise.resolve();
+function saveItems(){
+  _saveQ=_saveQ.then(async()=>{
+    if(Store.ok()){try{await Store.set('items',ITEMS);return}catch(e){}}
+    LS.save(LS.KI,ITEMS);
+  }).catch(()=>{});
+  return _saveQ;
+}
+const nid=()=>ITEMS.reduce((m,i)=>Math.max(m,+i.id||0),0)+1;
+const get=id=>ITEMS.find(i=>i.id===+id)||null;
+
+function stats(){ /* §12 act.stats.set — Active / Ended / In Stock / Value */
+  const a=ITEMS.filter(i=>i.status!=='ended'&&!i.oos),e=ITEMS.filter(i=>i.status==='ended');
+  return{active:a.length,ended:e.length,inStock:a.filter(i=>(i.stock||0)>0).length,
+    val:a.reduce((s,i)=>s+(i.price||0)*(i.stock||0),0)};
+}
+
+/* ═══ SEARCH — verbatim behavior from storefront matchItem (§21 beh.search) ═══
+   fields: title, stock #, part #, loc, c-part, category, interchange numbers */
+function matchItem(i,q){
+  const words=String(q||'').toLowerCase().split(/\s+/).filter(Boolean);if(!words.length)return true;
+  const hay=[i.title,i.sku,i.partNum,i.loc,i.cpart,i.category,i.interchange].map(v=>v||'').join(' ').toLowerCase();
+  const ints=String(i.interchange||'').toLowerCase().split(/[\s,;\/]+/).map(t=>t.replace(/[^a-z0-9]/g,'')).filter(Boolean);
+  return words.every(w=>{if(hay.includes(w))return true;const wn=w.replace(/[^a-z0-9]/g,'');return wn.length>=3&&ints.some(t=>t.includes(wn))});
+}
+
+/* out-of-stock helpers — a vendor can type "out of stock" in the search bar to pull them all up */
+const OOS_WORDS=new Set(['outofstock','oos']);
+const normQ=s=>String(s||'').toLowerCase().replace(/[^a-z]/g,'');
+const isOos=i=>i.status!=='ended'&&(!!i.oos||(i.stock||0)<=0);
+</script>
+<script>
+'use strict';
+/* ═══ BROWSE — ported from storefront Browse module (query · render · infinite scroll · lazy thumbs) ═══ */
+const Browse=(()=>{
+  let q='',_brand='',sort=CFG.DEFAULT_BROWSE_SORT,perPage=CFG.PER_PAGE,_vis=0,_matched=[],_loading=false,_obs=null,_tobs=null,_built=false,_oosQ=false,
+    hideOos=(()=>{try{return localStorage.getItem('bs_ooshide')==='1'}catch(e){return false}})(), /* vendor OOS show/hide toggle */
+    _st=null,_restoring=false;
+  /* ── browse-state memory — search · sort · cards loaded · scroll position ──
+     saved on every render / scroll / search (empty searches included) so the browser back
+     button, "back to {business}" and a plain reload land on the exact same view */
+  const SKEY='bs_browse_v1';
+  let _saved={q:'',brand:'',sort:CFG.DEFAULT_BROWSE_SORT,vis:0,scroll:0};
+
+  function all(){ /* DS.query comparators — same truth, vendor sees ended/oos */
+    let r=ITEMS.filter(i=>Vnd.on()||(i.status!=='ended'&&!i.oos));
+    _oosQ=!!(Vnd.on()&&q&&OOS_WORDS.has(normQ(q))); /* typing "out of stock" pulls up every OOS listing */
+    if(_brand){const b=_brand.toLowerCase();r=r.filter(i=>String(i.brand||'').trim().toLowerCase()===b)}
+    if(q){if(_oosQ)r=r.filter(isOos);else r=r.filter(i=>matchItem(i,q))}
+    if(!_oosQ&&Vnd.on()&&hideOos)r=r.filter(i=>!isOos(i));
+    if(sort==='pa')r.sort((a,b)=>(a.price||0)-(b.price||0));
+    else if(sort==='pd')r.sort((a,b)=>(b.price||0)-(a.price||0));
+    else if(sort==='az')r.sort((a,b)=>(a.title||'').localeCompare(b.title||''));
+    else if(sort==='szd')r.sort((a,b)=>(b.sku||'').localeCompare(a.sku||''));
+    else if(sort==='edited')r.sort((a,b)=>(b.updated||b.created||0)-(a.updated||a.created||0));
+    else r.sort((a,b)=>(b.id||0)-(a.id||0));
+    return r;
+  }
+
+  function card(i){
+    const th=(i.thumbs&&i.thumbs[0])||'';
+    const media=th?`<img class="cimg" data-ci="${i.id}" src="${th}" alt="">`
+                  :`<div class="mw-cimg cph" data-ci="${i.id}"><i class="fa-solid ${E(i.icon||'fa-cube')}" aria-hidden="true"></i></div>`;
+    const ended=i.status==='ended';
+    const tag=(ended?' · <span class="oos">ENDED</span>':(i.oos?' · <span class="oos">OUT OF STOCK</span>':''))+(Vnd.on()?Sx.rowBadges(i)+(isPackaged(i)?'<span class="stbadge pku">PACKAGED</span>':''):'');
+    return `<div class="mw-card${ended?' ended':''}" data-id="${i.id}" onclick="Det.open(${i.id})">`+
+      `<div class="mw-cimg">${media}</div>`+
+      `<div class="mw-cbody"><div class="mw-ct">${E(i.title)}</div>`+
+      `<div class="mw-cp">${typeof i.price==='number'?'$'+i.price.toFixed(2):'—'}</div>`+
+      `<div class="mw-csku">${E(i.sku||'')}${tag}</div></div></div>`;
+  }
+
+  function _updInfo(){
+    const tot=_matched.length,rl=$('rline');
+    const bc=_brand?` <span class="bchip" onclick="Browse.setBrand('')" title="Clear brand filter">brand: ${E(_brand)} <i class="fa-solid fa-xmark"></i></span>`:'';
+    if(rl&&!q&&_brand){rl.style.display='block';rl.innerHTML=`<b>${tot}</b> listing${tot!==1?'s':''}`+bc}
+    else if(rl){if(q){rl.style.display='block';
+      rl.innerHTML=_oosQ?`<b>${tot}</b> out-of-stock listing${tot!==1?'s':''} — open one to restock, edit or end it`
+                        :`<b>${tot}</b> listing${tot!==1?'s':''} for \u201c${E(q)}\u201d`+bc}
+     else rl.style.display='none'}
+  }
+
+  function render(){
+    _matched=all();
+    const tot=_matched.length;
+    if(!_vis)_vis=Math.min(perPage,Math.max(tot,0));
+    const g=$('grid');
+    if(!tot){
+      const et=q?(_oosQ?'No out-of-stock items':'No results'):(window._b64Loaded?'No active listings':'Empty store');
+      const es=_oosQ?'Everything active is in stock.':(Vnd.on()?'Use + New to add listings.':'Try brake, filter, electrical…');
+      g.innerHTML=`<div class="empty">${window._b64Loaded?'':'<div class="ei">📦</div>'}<div class="et">${et}</div><div class="es">${es}</div></div>`;
+      hideSent();
+    }else{
+      g.innerHTML=_matched.slice(0,_vis).map(card).join('')+
+        `<div id="loadMoreTrigger"></div><div id="loadingIndicator">Loading more listings…</div><div id="endOfList">end of listings</div>`;
+      if(_vis<tot)showSent();
+      else{hideSent();const e=$('endOfList');if(e&&tot>perPage)e.style.display='block'}
+      lazyThumbs();
+    }
+    _updInfo();
+    chrome();
+    saveState(); /* remember q · sort · cards loaded · scroll for back-navigation + reload */
+  }
+
+  /* lazy thumbnails — IntersectionObserver rootMargin 200px (§07 card.lazyload);
+     static deploy: a placeholder also triggers one /src packet fetch to hydrate the photo */
+  function lazyThumbs(){
+    if(!_tobs)_tobs=new IntersectionObserver(es=>{es.forEach(en=>{
+      if(!en.isIntersecting)return;_tobs.unobserve(en.target);
+      const id=+en.target.dataset.ci,i=get(id);
+      const swap=it=>{const im=document.createElement('img');im.className='cimg';im.dataset.ci=id;im.loading='lazy';im.alt='';im.src=it.thumbs[0];en.target.replaceWith(im)};
+      if(i&&i.thumbs&&i.thumbs[0]){swap(i)}
+      else if(i&&Static.on()&&Static.need(id)){
+        Static.fetchItem(id).then(okk=>{const j=get(id);
+          if(okk&&j&&j.thumbs&&j.thumbs[0]&&en.target.isConnected)swap(j);
+        });
+      }
+    })},{root:$('views'),rootMargin:CFG.THUMB_MARGIN});
+    document.querySelectorAll('#grid .cph[data-ci],#dmore-grid .cph[data-ci]').forEach(el=>_tobs.observe(el));
+  }
+
+  function showSent(){const s=$('loadMoreTrigger');if(s)s.style.display='block';reobserve()}
+  function hideSent(){const s=$('loadMoreTrigger');if(s)s.style.display='none';const li=$('loadingIndicator');if(li)li.style.display='none'}
+  function reobserve(){
+    if(!_obs)return;const s=$('loadMoreTrigger');_obs.disconnect();if(s)_obs.observe(s);
+  }
+  function loadMore(){
+    if(_loading)return;
+    const tot=_matched.length;
+    if(_vis>=tot){hideSent();return}
+    _loading=true;
+    const li=$('loadingIndicator');if(li)li.style.display='block';
+    setTimeout(()=>{
+      const start=_vis,end=Math.min(start+perPage,tot);
+      const g=$('grid'),sent=$('loadMoreTrigger');
+      if(g&&end>start){
+        const frag=document.createElement('div');
+        frag.innerHTML=_matched.slice(start,end).map(card).join('');
+        while(frag.firstChild)(sent||g).parentNode.insertBefore(frag.firstChild,sent||null);
+        _vis=end;
+      }
+      if(li)li.style.display='none';
+      _loading=false;
+      lazyThumbs(); /* cards appended past page 1 must be observed too, or their photos never hydrate */
+      saveState();
+      if(_vis>=tot){hideSent();const e=$('endOfList');if(e&&tot>perPage)e.style.display='block'}
+      else{showSent();setTimeout(()=>{const s=$('loadMoreTrigger');if(s&&s.style.display!=='none'&&s.getBoundingClientRect().top<innerHeight+300)loadMore()},80)}
+    },80);
+  }
+
+  /* vendor OOS toggle — show/hide out-of-stock listings in the grid (persisted) */
+  function oosBtn(){
+    const b=$('oosbtn');if(!b)return;
+    b.classList.toggle('am',hideOos);
+    b.innerHTML=hideOos?'<i class="fa-solid fa-eye-slash"></i> OOS hidden':'<i class="fa-solid fa-eye"></i> OOS shown';
+    b.title=hideOos?'Out-of-stock listings are hidden — click to show them'
+                    :'Out-of-stock listings are shown — click to hide them';
+  }
+  function toggleOos(){
+    hideOos=!hideOos;try{localStorage.setItem('bs_ooshide',hideOos?'1':'0')}catch(e){}
+    _vis=0;oosBtn();$('views').scrollTop=0;render();
+  }
+  function init(){
+    _obs=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting)loadMore()})},{root:$('views'),rootMargin:CFG.SCROLL_MARGIN});
+    /* remember the scroll position while browsing (throttled; skipped while a listing is
+       open — the shared container is parked at 0 there and must not clobber the memory) */
+    $('views').addEventListener('scroll',()=>{if(_st||_restoring)return;_st=setTimeout(()=>{_st=null;saveState()},250)},{passive:true});
+    _built=true;oosBtn(); /* reflect the persisted OOS show/hide state on the vendbar button */
+  }
+  function search(v){q=String(v||'');_vis=0;$('si-x').classList.toggle('show',!!q);
+    if($('view-detail').classList.contains('on'))Det.toBrowse(); /* typing on an item page = store search: leave the item, show the results */
+    $('views').scrollTop=0;render()}
+  function clearSearch(){$('si').value='';search('')}
+  function sortSel(v){sort=v;_vis=0;$('views').scrollTop=0;SortMenu.sync();render()}
+  function reset(){ /* store home: leave any item page, clear search + brand + sort, back to the top of the main page */
+    q='';_brand='';sort=CFG.DEFAULT_BROWSE_SORT;_vis=0;$('si').value='';$('si-x').classList.remove('show');
+    if($('view-detail').classList.contains('on'))Det.toBrowse();
+    try{SortMenu.close();$('brandpop').classList.remove('on');Pk.close();const pm=$('pdmod');if(pm)pm.remove()}catch(e){}
+    _updBrandBtn();$('views').scrollTop=0;SortMenu.sync();render();$('views').scrollTop=0;
+  }
+  /* brand filter */
+  function brandList(){const m=new Map();ITEMS.forEach(i=>{if(!Vnd.on()&&(i.status==='ended'||i.oos))return;const v=String(i.brand||'').trim();if(!v)return;const k=v.toLowerCase(),e=m.get(k);if(e)e.n++;else m.set(k,{name:v,n:1})});return[...m.values()].sort((a,b)=>a.name.localeCompare(b.name))}
+  function _updBrandBtn(){const b=$('brandbtn');if(!b)return;b.classList.toggle('am',!!_brand);b.title=_brand?'Brand: '+_brand+' (click to change)':'Browse by brand'}
+  function brandMenu(e){
+    if(e)e.stopPropagation();const pop=$('brandpop');SortMenu.close();
+    const list=brandList();
+    pop.innerHTML=`<div class="sp-hd">brand ? ${list.length}</div>`.replace('?','·')+
+      `<div class="sp-row${_brand?'':' on'}" data-b="" onclick="Browse.setBrand(this.dataset.b)">All brands<i class="fa-solid fa-check"></i></div>`+
+      (list.length?list.map(c=>`<div class="sp-row${c.name.toLowerCase()===_brand.toLowerCase()?' on':''}" data-b="${E(c.name)}" onclick="Browse.setBrand(this.dataset.b)">${E(c.name)} <span class="bn">${c.n}</span><i class="fa-solid fa-check"></i></div>`).join(''):'<div class="sp-hd">no brands yet</div>');
+    pop.classList.toggle('on');
+  }
+  function setBrand(b){
+    _brand=b||'';_vis=0;$('brandpop').classList.remove('on');_updBrandBtn();
+    if($('view-detail').classList.contains('on'))Det.toBrowse();
+    $('views').scrollTop=0;render();
+  }
+  /* ── state-memory API (used by Det · popstate · boot) ── */
+  function stateSnapshot(){
+    return{q,brand:_brand,sort,vis:_vis,scroll:$('view-browse').classList.contains('on')?Math.round($('views').scrollTop||0):(_saved.scroll||0)};
+  }
+  function persistState(s){_saved=s;try{localStorage.setItem(SKEY,JSON.stringify(s))}catch(e){}}
+  function saveState(){if(_restoring)return;if($('view-detail').classList.contains('on'))return;persistState(stateSnapshot())}
+  function persistBrowse(){ /* captured the instant a listing is opened — Det.show(push) calls this */
+    if($('view-browse').classList.contains('on'))persistState(stateSnapshot());
+  }
+  function _setScroll(sc){
+    requestAnimationFrame(()=>{try{$('views').scrollTop=sc}catch(e){}
+      setTimeout(()=>{try{$('views').scrollTop=sc}catch(e){}},80)});
+  }
+  function restoreScroll(s){ /* back/forward navigation — the grid is intact, just re-scroll it */
+    const src=(s&&s.scroll!=null)?s:_saved;
+    _setScroll(Math.max(0,Math.round(+src.scroll||0)));
+  }
+  function restoreSaved(){ /* boot — restore search · sort · cards loaded · scroll from the last visit */
+    let s=null;try{s=JSON.parse(localStorage.getItem(SKEY)||'null')}catch(e){}
+    if(!s||typeof s!=='object')return false;
+    q=String(s.q||'');_brand=String(s.brand||'');_updBrandBtn();
+    sort=SORTS.some(x=>x[0]===s.sort)?s.sort:CFG.DEFAULT_BROWSE_SORT;
+    _vis=Math.max(0,Math.min(Math.round(+s.vis||0),2000));
+    _saved={q,brand:_brand,sort,vis:_vis,scroll:Math.max(0,Math.round(+s.scroll||0))};
+    $('si').value=q;$('si-x').classList.toggle('show',!!q);
+    SortMenu.sync();
+    _restoring=true;render();
+    const sc=_saved.scroll;
+    requestAnimationFrame(()=>{try{$('views').scrollTop=sc}catch(e){}
+      setTimeout(()=>{try{$('views').scrollTop=sc}catch(e){}_restoring=false},80)});
+    return true;
+  }
+  return{render,init,search,clearSearch,sortSel,reset,lazyThumbs,card,brandMenu,setBrand,curSort:()=>sort,toggleOos,oosBtn,oosMode:()=>_oosQ,
+    saveState,persistBrowse,restoreSaved,restoreScroll};
+})();
+
+/* ═══ SORT MENU — the table-list button · 6 modes §06 ═══ */
+const SortMenu=(()=>{
+  function build(){
+    $('sortpop').innerHTML=`<div class="sp-hd">sort · ${SORTS.length} modes</div>`+
+      SORTS.map(([v,l])=>`<div class="sp-row${v===Browse.curSort()?' on':''}" data-v="${v}" onclick="Browse.sortSel('${v}')">${E(l)}<i class="fa-solid fa-check"></i></div>`).join('');
+  }
+  function sync(){build()}
+  function toggle(e){e&&e.stopPropagation();const p=$('sortpop');build();p.classList.toggle('on')}
+  function close(){$('sortpop').classList.remove('on');const bp=$('brandpop');if(bp)bp.classList.remove('on')}
+  return{toggle,close,sync};
+})();
+
+/* ═══ STATUS BAR + LIVE badge — computed truth, never hard-coded ═══ */
+function chrome(){
+  const s=stats();
+  $('mwfoot').innerHTML=
+    `<span><b>${s.active}</b> active listings</span>`+
+    `<span><b>${SORTS.length}</b> sort modes</span>`+
+    `<span>lazy thumbs</span><span>infinite scroll</span>`+
+    `<span id="ft-b64"></span>`;
+  liveBadge();
+  try{Sx.cnt()}catch(e){}
+  try{if(Vnd.on())DB.foot()}catch(e){}
+}
+/* top-right badge: live (public web) → vendor (File System API available, orange) → vendor linked (B64 /src folder connected) */
+function liveBadge(){
+  const lv=$('live');if(!lv)return;
+  let fsOk=false,linked=false;
+  try{fsOk=FS.ok()}catch(e){}
+  try{linked=DB._hasDir()}catch(e){}
+  lv.classList.remove('off','vendor','linked');
+  if(fsOk&&linked){lv.classList.add('linked');lv.textContent='vendor linked';lv.title='File System API active — B64 /src folder linked, saving enabled'}
+  else if(fsOk){lv.classList.add('vendor');lv.textContent='vendor';lv.title='File System API active — link the B64 /src folder to save listings'}
+  else if(stats().active>0){lv.textContent='live';lv.title='Public website view'}
+  else{lv.classList.add('off');lv.textContent='offline';lv.title='No active listings'}
+}
+
+/* ═══ DETAIL — Det.open pattern: title swap · SEO · deeplink ?item= §27/§11 ═══ */
+const Det=(()=>{
+  let id=null,pushed=false; /* pushed: this listing was pushed onto the history stack */
+  function partline(i){
+    const b=[`Part # ${i.partNum||i.sku||'—'}`,CFG.RETURNS,`${CFG.HANDLING} handling`,`Ships via ${CFG.SVC}`,`arrives in ${CFG.ETA}`];
+    if(i.loc)b.push(`Loc: ${i.loc}`);
+    if(i.interchange)b.push(`Int: ${i.interchange}`);
+    return b.join(' · ');
+  }
+  function show(i,push=true){
+    const _keep=(!push&&$('view-detail').classList.contains('on'))?$('views').scrollTop:0; /* refresh keeps the scroll position */
+    if(push)Browse.persistBrowse(); /* snapshot search + scroll BEFORE the browse view hides */
+    id=i.id;
+    const ended=i.status==='ended';
+    const media=(i.images&&i.images[0])?`<img src="${i.images[0]}" alt="">`:`<i class="fa-solid ${E(i.icon||'fa-cube')}" aria-hidden="true"></i>`;
+    const out=(i.stock||0)<=0&&!ended;
+    $('view-detail').innerHTML=
+      `<div class="dwrap">
+         <div class="dimg">${media}</div>
+         <div class="dinfo">
+           ${ended?`<div class="dend">${i.endReason==='sold'?'sold':'ended'} · ${new Date(i.ended||Date.now()).toLocaleDateString()}</div>`:''}
+           <div class="dtitle">${E(i.title)}</div>
+           <div class="dprice">${typeof i.price==='number'?money(i.price):'—'}</div>
+           <div class="dsku">${E(i.sku||'')}</div>
+           <div class="dmeta">
+             <div>Qty: <b>${out?'<span class="oos">Out of stock</span>':i.stock}</b></div>
+             ${i.soldQty>0?`<div>Sold: <b>${i.soldQty}</b></div>`:''}
+             ${i.category?`<div>Category: <b>${E(i.category)}</b></div>`:''}
+             ${i.brand?`<div>Brand: <b>${E(i.brand)}</b></div>`:''}
+             ${i.condition?`<div>Condition: <b>${E(COND[i.condition]||i.condition)}</b></div>`:''}
+           </div>
+           <div class="dline">${E(partline(i))}</div>
+           ${Vnd.on()?vstat(i):''}
+           ${ended?'':`<button id="dbuy" onclick="Basket.add(${i.id})" ${out?'disabled':''}>${out?'Out of stock':'Add to Basket'}</button>`}
+         </div>
+       </div>${policyBox(i)}${moreBox(i)}`;
+    $('view-browse').classList.remove('on');
+    $('view-detail').classList.add('on');
+    $('views').scrollTop=_keep;try{Browse.lazyThumbs()}catch(e){}
+    Vnd.detBar(i); /* vendor buttons (Edit/Sold/End/Delete) live in the vendbar, not under Add to Basket */
+    barSync(); /* the back button rides the same bar as New/Export/B64 */
+    document.title=i.title||CFG.NAME;
+    seo(i);
+    if(push){pushed=true;try{history.pushState({det:id},'','?item='+id)}catch(e){}}
+  }
+  async function open(x,push=true){ /* static deploy: hydrate the packet from /src before rendering */
+    let i=get(x);
+    if(i&&Static.on()&&Static.need(x)){try{await Static.fetchItem(x);i=get(x)||i}catch(e){}}
+    if(i)show(i,push);
+  }
+  function toBrowse(){ /* leave the item page without touching the search / brand that is being typed */
+    _closeView();try{history.replaceState({browse:1},'',''+location.pathname)}catch(e){}
+  }
+  function _closeView(){
+    id=null;pushed=false;
+    $('view-detail').classList.remove('on');
+    $('view-browse').classList.add('on');
+    Vnd.detBar(null);
+    barSync();
+    document.title=winTitle();
+    seo(null);
+  }
+  function close(){
+    /* pushed onto the stack → history.back() closes it (popstate restores search + scroll);
+       deeplink loads close in place and clean the ?item= URL */
+    if(pushed){try{history.back();return}catch(e){pushed=false}}
+    _closeView();
+    try{history.replaceState({browse:1},'',''+location.pathname)}catch(e){}
+    Browse.restoreScroll();
+  }
+  function refresh(){const i=id!=null?get(id):null;if(i&&$('view-detail').classList.contains('on'))show(i,false)}
+  /* vendor-only status under the price: pending sold / sold-not-packaged / packaged labels */
+  function vstat(i){
+    const st=Sx.status(i),un=Sx.unpackaged(i);
+    let h=`<div class="dvst">Status: <b>${E(st)}</b>${isPackaged(i)?' <span class="stbadge pku">PACKAGED</span>':''}</div>`;
+    h+=Sx.pendRows(i);
+    if(un.length&&i.status!=='ended')h+=`<div class="dvst sold">Sold, not packaged yet: <b>${un.reduce((s,x)=>s+(x.qty||1),0)}</b> &middot; press Packaged to log it</div>`;
+    return h;
+  }
+  /* Store Policy: collapsible box under the item details (plain text from Business Info, default text when blank) */
+  function policyBox(i){
+    if(i.status==='ended'||i.hidePolicy)return '';
+    const raw=String(CFG.STORE_POLICY||DEFAULT_POLICY);
+    const body=raw.split('\n').map(l=>{const t=l.trim();if(!t)return '';return /^[A-Z][A-Z0-9 &\/'-]{2,}[.:]?$/.test(t)?`<h4>${E(t)}</h4>`:`<p>${E(t)}</p>`}).join('');
+    return `<div class="dpol" id="dpol"><div class="dpol-hd" onclick="Det.togPB()"><span>Store Policy</span><i class="fa-solid fa-chevron-down"></i></div><div class="dpol-bd">${body}</div></div>`;
+  }
+  function togPB(){const e=$('dpol');if(e)e.classList.toggle('min')}
+  /* More like this / More in <category>, under the policy: shared part # first, then same category, then newest */
+  function relList(it,n){
+    const all=ITEMS.filter(x=>x.id!==it.id&&x.status!=='ended'&&!x.oos);
+    const tk=v=>String(v||'').toLowerCase().split(/[\s,;\/]+/).filter(Boolean);
+    const my=tk(it.cpart),mySet=new Set(my),myStr=my.join(' ');
+    let cp=[];
+    if(my.length)cp=all.map(x=>{const t=tk(x.cpart);if(!t.length)return null;const sh=t.filter(w=>mySet.has(w)).length;return sh?{x,ex:t.join(' ')===myStr?1:0,sh}:null}).filter(Boolean)
+      .sort((a,b)=>b.ex-a.ex||b.sh-a.sh||(b.x.created||0)-(a.x.created||0)).map(o=>o.x);
+    const cat=(it.category||'').trim().toLowerCase();
+    const same=cat?all.filter(x=>(x.category||'').trim().toLowerCase()===cat):[];
+    const out=[],used=new Set();
+    const push=l=>{for(const x of l){if(out.length>=n)break;if(!used.has(x.id)){used.add(x.id);out.push(x)}}};
+    push(cp.slice(0,5));push(same);push(all.slice().sort((a,b)=>(b.created||0)-(a.created||0)));
+    return{list:out,hasCp:cp.length>0,hasCat:same.length>0};
+  }
+  function moreBox(i){
+    const r=relList(i,10);if(!r.list.length)return '';
+    const lbl=r.hasCp?'More like this':(r.hasCat?`More in ${E(i.category.trim())}`:'More like this');
+    return `<div class="dmore"><div class="dmore-l">${lbl}</div><div class="dmore-g" id="dmore-grid">${r.list.map(x=>Browse.card(x)).join('')}</div></div>`;
+  }
+  /* Mark sold: sale record + quantity + stock number, same sync as the storefront (pending is consumed first) */
+  async function markSold(){
+    const i=get(id);if(!i||i.status==='ended')return;
+    if(!await DB.ensure())return;
+    Mx.form({title:'Mark sold',note:E(i.title||'')+'<br><span style="color:var(--t3)">Records the sale (price record), lowers quantity and removes the stock numbers. The last unit makes the listing OUT OF STOCK. Package it afterwards from this page.</span>',
+      fields:[{k:'qty',label:'How many sold?',type:'number',min:1,value:1},{k:'skus',label:'Stock number(s) sold',value:((i.stock||0)<=1?(i.sku||''):''),ph:'stock #'},{k:'price',label:'Price each',type:'number',min:0,step:'0.01',value:(i.price||0).toFixed(2)},
+        {k:'name',label:'Buyer name',value:''},{k:'company',label:'Company name',value:''},{k:'email',label:'Buyer email',type:'email',value:''},{k:'phone',label:'Buyer phone',type:'tel',value:''},{k:'zip',label:'Zip code',value:''}],ok:'✓ Mark sold',
+      onOk:v=>{const q=parseInt(v.qty);if(!q||q<1){Toast('Enter how many');return false}const pr=parseFloat(v.price);
+        const nb={name:v.name.trim(),company:v.company.trim(),email:v.email.trim(),phone:v.phone.trim(),zip:v.zip.trim()};
+        Sx.nextOrder().then(order=>Sx.sell(i.id,{qty:q,skus:v.skus,price:isFinite(pr)?pr:undefined,src:'sold',order,buyer:Object.values(nb).some(Boolean)?nb:null})).then(r=>{
+          if(r){Toast((r.item.oos?'Sold: listing is now OUT OF STOCK':'Sold: '+(r.item.stock||0)+' left')+' · PO '+r.item.sales[r.item.sales.length-1].order,4500);chrome();Browse.render();refresh()}})}});
+  }
+
+  async function markSold_old(){
+    const i=get(id);if(!i)return;
+    if(!await DB.ensure())return;
+    const q=Math.max(1,parseInt(prompt(`Mark sold — quantity for ${i.sku||i.title}:`,'1'),10)||0);
+    if(!q||q<1)return;
+    const base=DB.ver(i);
+    i.stock=Math.max(0,(i.stock||0)-q);
+    i.soldQty=(i.soldQty||0)+q;
+    i.updated=Date.now();
+    await saveItems();
+    let msg=`Sold ${q} × ${i.sku||''}`,fn=null;
+    if(DB._hasDir()){ /* disk is source of truth — packet write + read-back verify + manifest autosave */
+      const c=await DB.conflict(i.id,base);
+      if(c){DB.conflictMsg(i.id,c);chrome();Browse.render();show(i,false);return}
+      fn=await DB.write(i,i.status==='ended'?'ended':'active');
+      if(fn){await DB.autoSave();msg+=' — '+fn}else msg='NOT saved to folder — re-link B64 and try again';
+    }
+    chrome();Browse.render();show(i,false);Toast(msg,fn?2600:4200);
+  }
+  async function endIt(){
+    const i=get(id);if(!i)return;
+    if(!await DB.ensure())return;
+    if(!confirm(`End listing \u201c${i.title}\u201d?`))return;
+    const base=DB.ver(i);
+    i.status='ended';i.endReason='ended';i.ended=Date.now();i.updated=Date.now();i.pend=[];
+    await saveItems();
+    let msg='Listing ended',fn=null;
+    if(DB._hasDir()){
+      const c=await DB.conflict(i.id,base);
+      if(c){DB.conflictMsg(i.id,c);chrome();Browse.render();show(i,false);return}
+      fn=await DB.write(i,'ended');
+      if(fn){await DB.autoSave();msg='Listing ended — '+fn}else msg='NOT saved to folder — re-link B64 and try again';
+    }
+    chrome();Browse.render();show(i,false);Toast(msg,fn?2600:4200);
+  }
+  async function delIt(){
+    const i=get(id);if(!i)return;
+    if(!await DB.ensure())return;
+    if(!confirm(`Delete \u201c${i.title}\u201d permanently?`))return;
+    const base=DB.ver(i);
+    ITEMS=ITEMS.filter(x=>x.id!==i.id);
+    await saveItems();
+    let msg='Listing deleted',fn=null;
+    if(DB._hasDir()){
+      const c=await DB.conflict(i.id,base);
+      if(c){DB.conflictMsg(i.id,c);chrome();close();Browse.render();return}
+      fn=await DB.write({id:i.id,title:i.title||''},'deleted'); /* tombstone packet — other workstations see the deletion */
+      if(fn){await DB.autoSave();msg='Listing deleted — '+fn}else msg='Delete NOT saved to folder — re-link B64 and try again';
+    }
+    chrome();close();Browse.render();Toast(msg,fn?2600:4200);
+  }
+  return{open,close,_closeView,toBrowse,refresh,markSold,endIt,delIt,togPB,cur:()=>id,current:()=>id!=null?get(id):null};
+})();
+
+/* seo — dynamic OG + JSON-LD Item §27 */
+function seo(i){
+  const base=location.href.split('?')[0];
+  if(i){
+    $('ld-item').textContent=JSON.stringify({'@context':'https://schema.org','@type':'Product',
+      name:i.title,sku:i.sku||'',category:i.category||'',
+      offers:{'@type':'Offer',priceCurrency:CFG.PP_CUR,price:(+i.price||0).toFixed(2),
+        availability:(i.oos||(i.stock||0)<=0)?'https://schema.org/OutOfStock':'https://schema.org/InStock'},
+      url:base+'?item='+i.id});
+    $('og-t').setAttribute('content',i.title||CFG.NAME);
+    $('og-d').setAttribute('content',`${money(i.price)} · ${i.sku||''} — ${CFG.NAME}`);
+  }else{
+    $('ld-item').textContent='';
+    $('og-t').setAttribute('content',CFG.NAME+' — storefront');
+    $('og-d').setAttribute('content','Auto parts store');
+  }
+}
+function winTitle(){return `${slug} — storefront / vendor`}
+</script>
+<script>
+/* ═══ PORT FROM THE OLD STOREFRONT ═══
+   Mx (modal form) · Sx (pending sold / sold / stock / location sync) · Pay · Rc (PNG receipt)
+   · Pk (packages list + side bar) · Pu (pickup). Everything below the shim talks to this
+   store's own ITEMS / DB / Det / Browse, so listings, pending, sold, packages stay in step. */
+
+/* DS shim: the storefront modules read/write listings through DS; this store keeps them in ITEMS (photos inline) */
+const DS={
+  all:()=>ITEMS,
+  get:id=>get(id),
+  imgs:id=>{const i=get(id);return i?{images:i.images||[],thumbs:i.thumbs||[]}:null},
+  ver:i=>DB.ver(i),
+  save(u){
+    const now=Date.now(),x=ITEMS.findIndex(i=>i.id===u.id);
+    u.updated=Math.max(now,(x>-1?DB.ver(ITEMS[x]):0)+1);u.status=u.status||'active';
+    if(x>-1)ITEMS[x]=u;else ITEMS.push(u);
+    saveItems();
+  }
+};
+const DEFAULT_POLICY=`ALL SALES ARE FINAL.
+Items are sold as-is. We do our best to describe condition accurately. Please review all photos and descriptions before purchasing.
+RETURNS
+30-day return policy on parts that do not match the listed description. Buyer pays return shipping. Item must be in original condition.
+SHIPPING
+We ship within 1-2 business days of cleared payment. Freight and large items require scheduling, we will contact you after purchase.
+LOCAL PICKUP
+Available by appointment. Please message before arriving.
+QUESTIONS
+Call or message us before purchasing if you have any questions about fitment, condition, or availability.`;
+const isPackaged=i=>!!(i&&(i.sales||[]).some(s=>s.pk||s.src==='package'));
+
+const Mx=(()=>{
+  function form(o){
+    const old=$('mxmod');if(old)old.remove();
+    const m=document.createElement('div');m.id='mxmod';
+    const f=(o.fields||[]).map((x,i)=>`<div class="mx-f"><label>${E(x.label)}</label>${x.type==='select'?`<select id="mxf${i}">${(x.options||[]).map(o=>`<option value="${E(o.v)}"${String(o.v)===String(x.value)?' selected':''}>${E(o.t)}</option>`).join('')}</select>`:x.type==='textarea'?`<textarea id="mxf${i}" rows="3" placeholder="${E(x.ph||'')}">${E(x.value||'')}</textarea>`:`<input id="mxf${i}" type="${x.type||'text'}"${x.min!=null?' min="'+x.min+'"':''}${x.step?' step="'+x.step+'"':''} value="${E(x.value==null?'':x.value)}" placeholder="${E(x.ph||'')}">`}</div>`).join('');
+    const btns=(o.buttons||[{key:'ok',label:o.ok||'OK'}]).map(b=>`<button type="button" class="pill${b.key==='ok'?' on':''}" data-k="${b.key}">${E(b.label)}</button>`).join('');
+    m.innerHTML=`<div class="mx-box"><div class="mx-t">${E(o.title||'')}</div>${o.note?`<div class="mx-n">${o.note}</div>`:''}${f}<div class="mx-b">${btns}<button type="button" class="pill" data-k="__x">Cancel</button></div></div>`;
+    m.onclick=e=>{
+      if(e.target===m){m.remove();return}
+      const b=e.target.closest('[data-k]');if(!b)return;const k=b.dataset.k;
+      if(k==='__x'){m.remove();return}
+      const v={};(o.fields||[]).forEach((x,i)=>{v[x.k]=$('mxf'+i).value});
+      if(o.onOk){const r=o.onOk(v,k);if(r===false)return}
+      m.remove();
+    };
+    m.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.tagName==='INPUT'){e.preventDefault();m.querySelector('[data-k]').click()}else if(e.key==='Escape')m.remove()});
+    document.body.appendChild(m);
+    (o.fields||[]).forEach((x,i)=>{if(x.dbl)$('mxf'+i).addEventListener('dblclick',e=>{e.target.value=x.dbl})});
+    setTimeout(()=>$('mxf0')?.focus(),30);
+  }
+  return{form};
+})();
+/* ═══ SALES / PENDING SOLD / OUT OF STOCK ═══
+   Listing fields:  pend=[{id,ts,exp,qty,skus[],buyer}]  (pending sold, expires after 14 days, does NOT change quantity until approved)
+                    sales=[{id,ts,qty,price,skus[],src,order}] (the "sold query": price records)   oos=true (all units sold)
+   ended = listing gone (no price records);  sold = recorded in sales[];  out of stock = last unit sold, listing kept hidden from the store */
+
+const Sx=(()=>{
+  const D14=14*864e5;
+  const toks=s=>String(s||'').split(/[\s,;\/]+/).map(t=>t.trim()).filter(Boolean);
+  const live=i=>(i&&Array.isArray(i.pend)?i.pend:[]).filter(p=>p&&p.exp>Date.now()&&p.qty>0);
+  const rid=p=>p+Date.now().toString(36)+Math.random().toString(36).slice(2,5);
+  function status(i){
+    if(!i)return'';
+    if(i.status==='ended')return i.endReason==='sold'?'Sold (ended)':'Ended';
+    if(i.oos)return'Out of stock';
+    if(live(i).length)return'Pending sold';
+    return(i.stock||0)>0?'In stock':'Active';
+  }
+  function badge(i){const q=i.stock||0;return((i.oos||q<=0)?'Out of stock':'Qty: '+q)+(live(i).length?' · Sale pending':'')}
+  const isSold=i=>!!(i&&((i.sales&&i.sales.length)||(i.status==='ended'&&i.endReason==='sold')));
+  // flat price records for DB stats (ended listings without a recorded sale give no price records)
+  function records(items){
+    const out=[];
+    (items||DS.all()).forEach(i=>{
+      if(i.sales&&i.sales.length)i.sales.forEach(s=>out.push({ts:s.ts||0,price:+s.price||0,qty:s.qty||1,sku:(s.skus&&s.skus[0])||i.sku||''}));
+      else if(i.status==='ended'&&i.endReason==='sold')out.push({ts:i.ended||0,price:i.price||0,qty:1,sku:i.sku||''});
+    });
+    return out;
+  }
+  // one safe write of a listing: vendor + folder linked + no newer version on disk; mut(copy) returns false to abort
+  let _cq=Promise.resolve();
+  function _commit(id,mut){const run=()=>_commit0(id,mut);const p=_cq.then(run,run);_cq=p.catch(()=>{});return p}
+  async function _commit0(id,mut){
+    if(!Vnd.on()){Toast('Vendor mode (local file) required');return null}
+    if(!await DB.ensure())return null;
+    const item=DS.get(id);if(!item){Toast('Listing not found');return null}
+    if(item.status==='ended'){Toast('This listing is ended');return null}
+    const c=await DB.conflict(id,DS.ver(item));if(c){DB.conflictMsg(id,c);return null}
+    const u={...item,pend:(item.pend||[]).map(p=>({...p})),sales:(item.sales||[]).map(s=>({...s}))};
+    const ic=DS.imgs(id);if(ic){u.images=ic.images;u.thumbs=ic.thumbs}
+    const out={};const r=mut(u,out);if(r===false)return null;
+    DS.save(u);
+    if(!await DB.write(u,'active',{direct:true})){Toast('NOT saved to folder, re-link B64 and try again');return null}
+    DB.autoSave();DB.stats();
+    try{Browse.render()}catch(e){}
+    return{item:DS.get(id),res:out};
+  }
+  // the one place quantity / stock numbers / sale records change
+  function _apply(u,o,out){
+    const q=Math.max(1,parseInt(o.qty)||1),fl={qty:true,sku:false,weight:false,size:false};
+    u.stock=Math.max(0,(u.stock||0)-q);
+    const used=toks(o.skus);
+    if(used.length){const set=new Set(used.map(x=>x.toLowerCase())),had=toks(u.sku),left=had.filter(t=>!set.has(t.toLowerCase()));fl.sku=left.length<had.length;u.sku=left.join(', ')}
+    u.soldQty=(u.soldQty||0)+q;
+    (u.sales=u.sales||[]).push({id:rid('s'),ts:o.ts||Date.now(),qty:q,price:(o.price!=null&&o.price!=='')?+o.price:(u.price||0),skus:used,src:o.src||'sale',order:o.order||null,buyer:o.buyer||null});
+    u.pend=(u.pend||[]).filter(p=>p.exp>Date.now());
+    if(o.pendId)u.pend=u.pend.filter(p=>p.id!==o.pendId);
+    else{let left=q;for(const p of u.pend){if(left<=0)break;const t=Math.min(p.qty,left);p.qty-=t;left-=t}u.pend=u.pend.filter(p=>p.qty>0)}
+    if(o.weight!=null&&String(o.weight).trim()!==''){u.weight=String(o.weight).trim();fl.weight=true}
+    if(o.dims!=null&&String(o.dims).trim()!==''){u.dims=String(o.dims).trim();fl.size=true}
+    if(u.stock<=0){u.stock=0;u.oos=true}
+    fl.status=status(u);out.fl=fl;return true;
+  }
+  async function sell(id,o){const r=await _commit(id,(u,out)=>_apply(u,o||{},out));return r?{item:r.item,fl:r.res.fl}:null}
+  // 6-digit purchase order numbers (100001...), shared by pending orders, sales and package entries
+  async function nextOrder(){
+    try{await Pk.load()}catch(e){}
+    let m=100000;
+    DS.all().forEach(i=>{(i.pend||[]).forEach(p=>{if(p.order>m)m=p.order});(i.sales||[]).forEach(x=>{if(x.order>m)m=x.order})});
+    try{m=Math.max(m,Pk.maxOrder())}catch(e){}
+    return m+1;
+  }
+  async function addPending(id,o){
+    const order=o.order||await nextOrder();
+    return _commit(id,u=>{const now=Date.now();u.pend=(u.pend||[]).filter(p=>p.exp>now);u.pend.push({id:rid('p'),ts:now,exp:now+D14,qty:Math.max(1,parseInt(o.qty)||1),skus:toks(o.skus),buyer:o.buyer||null,ref:o.ref||'',order});return true});
+  }
+  async function reject(id,pid){return _commit(id,u=>{u.pend=(u.pend||[]).filter(p=>p.id!==pid&&p.exp>Date.now());return true})}
+  async function approve(id,pid){
+    const it=DS.get(id),p=live(it).find(x=>x.id===pid);if(!p){Toast('Pending entry not found or expired');return null}
+    return sell(id,{qty:p.qty,skus:p.skus,pendId:pid,src:'pending',order:p.order||await nextOrder(),buyer:p.buyer});
+  }
+  function markPendingUI(id){
+    const it=DS.get(id);if(!it||it.status==='ended'){Toast('Listing is ended');return}
+    Mx.form({title:'Mark pending sold',note:E(it.title||'')+'<br><span style="color:var(--t3)">Pending sold expires after 14 days. Quantity changes when it is packaged or approved.</span>',
+      fields:[{k:'qty',label:'How many?',type:'number',min:1,value:1},{k:'skus',label:'Stock number(s)',value:((it.stock||0)<=1?(it.sku||''):''),ph:'stock # being sold'},
+        {k:'name',label:'Buyer name',value:''},{k:'company',label:'Company name',value:''},{k:'email',label:'Buyer email',type:'email',value:''},{k:'phone',label:'Buyer phone',type:'tel',value:''},{k:'zip',label:'Zip code',value:''}],ok:'⏳ Mark pending sold',
+      onOk:v=>{const q=parseInt(v.qty);if(!q||q<1){Toast('Enter how many');return false}
+        const buyer={name:v.name.trim(),company:v.company.trim(),email:v.email.trim(),phone:v.phone.trim(),zip:v.zip.trim()};
+        const has=Object.values(buyer).some(Boolean);
+        addPending(id,{qty:q,skus:v.skus,buyer:has?buyer:null}).then(r=>{if(r){const pe=r.item.pend[r.item.pend.length-1];Toast('Marked pending sold ('+q+')'+(pe?' · PO '+pe.order:''),4000);try{Det.refresh()}catch(e){}}})}});
+  }
+  function allPending(){const out=[];DS.all().forEach(i=>{if(i.status==='ended')return;live(i).forEach(p=>out.push({it:i,p}))});return out.sort((x,y)=>y.p.ts-x.p.ts)}
+  // sold (marked sold / approved) but not packaged yet: newest first
+  const unpackaged=i=>(i&&i.sales?i.sales:[]).filter(x=>(x.src==='sold'||x.src==='pending')&&!x.pk).sort((a,b)=>b.ts-a.ts);
+  function recentSold(){const out=[];DS.all().forEach(i=>{if(i.status==='ended')return;unpackaged(i).forEach(x=>out.push({it:i,s:x}))});return out.sort((a,b)=>b.s.ts-a.s.ts)}
+  function cnt(){const n=allPending().length,el=$('pend-n');if(el)el.textContent=n?String(n):''}
+  // packaging an item that was already marked sold: quantity / stock # were adjusted at sale time, so nothing is deducted again
+  async function packSale(id,saleId,o){
+    const r=await _commit(id,(u,out)=>{
+      const x=(u.sales||[]).find(z=>z.id===saleId);if(!x){Toast('Sold entry not found');return false}
+      x.pk=true;if(!x.order)x.order=o.order||null;
+      const fl={qty:true,sku:true,weight:false,size:false};
+      if(o.weight!=null&&String(o.weight).trim()!==''){u.weight=String(o.weight).trim();fl.weight=true}
+      if(o.dims!=null&&String(o.dims).trim()!==''){u.dims=String(o.dims).trim();fl.size=true}
+      fl.status=status(u);out.fl=fl;return true;
+    });
+    return r?{item:r.item,fl:r.res.fl}:null;
+  }
+  // relist: quantity + stock numbers come back, listing is In stock and shows as new (same item id, history kept in trail[] / sales[])
+  async function relist(id,o){
+    return _commit(id,u=>{
+      const q=Math.max(1,parseInt(o.qty)||1),have=toks(u.sku),add=toks(o.sku).filter(t=>!have.some(h=>h.toLowerCase()===t.toLowerCase()));
+      u.sku=[...have,...add].join(', ');u.stock=(u.stock||0)+q;u.oos=false;
+      if(o.price!=null&&isFinite(o.price))u.price=+o.price;
+      if(o.ship!=null&&isFinite(o.ship))u.shipping=+o.ship;
+      if(o.pkg)u.pkg=o.pkg;
+      u.created=Date.now();
+      (u.trail=u.trail||[]).push({ts:Date.now(),ev:'relist',qty:q,order:o.order||null});
+      return true;
+    });
+  }
+  async function setFields(id,f){
+    return _commit(id,u=>{
+      if(f.sku!=null)u.sku=String(f.sku).trim();
+      if(f.loc!=null)u.loc=String(f.loc).trim().toUpperCase();
+      if(f.stock!=null){u.stock=Math.max(0,parseInt(f.stock)||0);u.oos=u.stock<=0}
+      return true;
+    });
+  }
+  async function patch(id,fn){const it=DS.get(id);if(!it||it.status==='ended')return null;return _commit(id,u=>{fn(u);return true})}
+  function stockUI(id){
+    const it=DS.get(id);if(!it||it.status==='ended'){Toast('Listing is ended');return}
+    Mx.form({title:'Adjust stock',note:E(it.title||''),fields:[{k:'stock',label:'Quantity in stock',type:'number',min:0,value:it.stock||0},{k:'sku',label:'Stock number(s)',value:it.sku||''}],ok:'✓ Save stock',
+      onOk:v=>{const n=parseInt(v.stock);if(!(n>=0)){Toast('Enter a quantity');return false}
+        setFields(id,{stock:n,sku:v.sku}).then(r=>{if(r){Toast(r.item.oos?'Saved: listing is OUT OF STOCK':'Saved: '+r.item.stock+' in stock');try{Det.refresh()}catch(e){}}})}});
+  }
+  function locUI(id){
+    const it=DS.get(id);if(!it||it.status==='ended'){Toast('Listing is ended');return}
+    Mx.form({title:'Adjust location',note:E(it.title||''),fields:[{k:'loc',label:'Location',value:it.loc||'',ph:'2B4'}],ok:'✓ Save location',
+      onOk:v=>{setFields(id,{loc:v.loc}).then(r=>{if(r){Toast('Location saved');try{Det.refresh()}catch(e){}}})}});
+  }
+  async function editPending(id,pid,buyer){
+    return _commit(id,u=>{const p=(u.pend||[]).find(x=>x.id===pid);if(!p){Toast('Pending entry not found');return false}p.buyer=buyer;return true});
+  }
+  function editBuyerUI(id,pid,after){
+    const it=DS.get(id),p=live(it).find(x=>x.id===pid);if(!p){Toast('Pending entry not found or expired');return}
+    const b=p.buyer||{};
+    Mx.form({title:'Edit buyer info',note:E(it.title||'')+(p.order?'<br>PO '+p.order:''),fields:[{k:'name',label:'Name',value:b.name||''},{k:'company',label:'Company name',value:b.company||''},{k:'email',label:'Email',type:'email',value:b.email||''},{k:'phone',label:'Phone',type:'tel',value:b.phone||''},{k:'zip',label:'Zip code',value:b.zip||''}],ok:'✓ Save buyer info',
+      onOk:v=>{const nb={name:v.name.trim(),company:v.company.trim(),email:v.email.trim(),phone:v.phone.trim(),zip:v.zip.trim()};
+        editPending(id,pid,Object.values(nb).some(Boolean)?nb:null).then(r=>{if(r){Toast('Buyer info saved');if(after)after()}})}});
+  }
+  const ago=ts=>{const d=Math.floor((Date.now()-ts)/864e5);return d<=0?'today':d+'d ago'};
+  const bTxt=b=>b?[b.name,b.company,b.phone,b.email,b.zip].filter(Boolean).join(' · '):'';
+  // top-bar "Pending": recent sold (not packaged yet) above the pending orders, both newest first, with search
+  function panel(){
+    const old=$('pdmod');if(old)old.remove();
+    const m=document.createElement('div');m.id='pdmod';
+    m.innerHTML='<div class="mx-box pd-box"><div class="mx-t">⏳ Pending sold / recent sold</div><input id="pd-q" type="search" class="pd-q" placeholder="Search title, stock #, PO, buyer, id…" autocomplete="off"><div id="pd-lists"></div><div class="mx-b"><button type="button" class="pill" data-c="1">Close</button></div></div>';
+    const th=i=>DS.imgs(i.id)?.thumbs?.[0]||'';
+    const hit=(q,it,x,extra)=>!q||[it.title,it.id,it.sku,(x.skus||[]).join(' '),x.order,bTxt(x.buyer),extra].join(' ').toLowerCase().includes(q);
+    function draw(){
+      const q=($('pd-q').value||'').trim().toLowerCase();
+      const S=recentSold().filter(({it,s})=>hit(q,it,s)),P=allPending().filter(({it,p})=>hit(q,it,p));
+      const img=it=>th(it)?`<img src="${th(it)}" alt="">`:'<div class="pd-ph"></div>';
+      $('pd-lists').innerHTML=
+        `<div class="pd-sec">✔ Recent sold, not packaged yet (${S.length}) · newest first</div>`+
+        (S.length?S.map(({it,s})=>`<div class="pd-row" data-id="${it.id}">${img(it)}<div class="pd-i"><div class="pd-t">${E(it.title||'')}</div><div class="pd-m">${s.qty} x ${E((s.skus||[]).join(', '))||'no stock #'} · sold ${ago(s.ts)}${s.order?' · PO '+s.order:''}${bTxt(s.buyer)?' · '+E(bTxt(s.buyer)):''}</div></div></div>`).join(''):'<div class="pd-none">None</div>')+
+        `<div class="pd-sec">⏳ Pending sold (${P.length}) · newest first</div>`+
+        (P.length?P.map(({it,p})=>{const d=Math.floor((Date.now()-p.ts)/864e5),left=Math.max(0,Math.ceil((p.exp-Date.now())/864e5));
+          return`<div class="pd-row" data-id="${it.id}">${img(it)}<div class="pd-i"><div class="pd-t">${E(it.title||'')}</div><div class="pd-m"><b>pending ${d} day${d===1?'':'s'}</b> (${left}d left) · ${p.qty} x ${E((p.skus||[]).join(', '))||'no stock #'}${p.order?' · PO '+p.order:''}${bTxt(p.buyer)?' · '+E(bTxt(p.buyer)):''}</div></div><button type="button" class="pd-x" data-id="${it.id}" data-p="${p.id}" title="Remove pending status">×</button></div>`}).join(''):'<div class="pd-none">None</div>');
+    }
+    m.onclick=async e=>{
+      if(e.target===m||e.target.closest('[data-c]')){m.remove();return}
+      const x=e.target.closest('.pd-x');
+      if(x){await rejectUI(+x.dataset.id,x.dataset.p);draw();return}
+      const r=e.target.closest('.pd-row');if(r){m.remove();Det.open(+r.dataset.id)}
+    };
+    m.addEventListener('input',e=>{if(e.target.id==='pd-q')draw()});
+    document.body.appendChild(m);draw();setTimeout(()=>$('pd-q')?.focus(),30);
+  }
+  function cardStatus(i){
+    if(!Vnd.on())return'';
+    if(i.status==='ended')return`<div class="cvst">ITEM STATUS: ${i.endReason==='sold'?'SOLD (ENDED)':'ENDED'}<i>shown in vendor mode only</i></div>`;
+    if(i.oos)return`<div class="cvst">ITEM STATUS: OUT OF STOCK<i>shown in vendor mode only</i></div>`;
+    return'';
+  }
+  async function approveUI(id,pid){
+    const it=DS.get(id),p=live(it).find(x=>x.id===pid);if(!p){Toast('Pending entry not found or expired');return}
+    if(!confirm('Approve sale of '+p.qty+' x '+(it.title||'')+(p.skus.length?' (stock # '+p.skus.join(', ')+')':'')+'?\nQuantity and stock numbers are updated and the sale is recorded.'))return;
+    const r=await approve(id,pid);
+    if(r){Toast(r.item.oos?'Approved: listing is now OUT OF STOCK':'Approved: '+(r.item.stock||0)+' left');try{Det.refresh()}catch(e){}}
+  }
+  async function rejectUI(id,pid){
+    if(!confirm('Reject (remove) this pending sold entry?'))return;
+    const r=await reject(id,pid);if(r){Toast('Pending entry removed');try{Det.refresh()}catch(e){}}
+  }
+  function rowBadges(i){
+    let h='';if(i.status==='ended')return h;
+    if(i.oos)h+='<span class="stbadge oos">OUT OF STOCK</span>';
+    const n=live(i).length;if(n)h+='<span class="stbadge pend">⏳ PENDING SOLD</span>';
+    return h;
+  }
+  function pendRows(i){
+    if(i.status==='ended'||!Vnd.on())return'';
+    return live(i).map(p=>{const d=Math.max(0,Math.ceil((p.exp-Date.now())/864e5));
+      return`<div class="pendrow" onclick="event.stopPropagation()">⏳ ${p.qty} x${p.skus.length?' '+E(p.skus.join(', ')):''} · ${d}d left <button class="ok" onclick="event.stopPropagation();Sx.approveUI(${i.id},'${p.id}')">✓ Approve</button><button class="no x" title="Remove pending status" onclick="event.stopPropagation();Sx.rejectUI(${i.id},'${p.id}')">×</button></div>`}).join('');
+  }
+  return{patch,toks,live,status,badge,isSold,records,sell,addPending,reject,approve,markPendingUI,approveUI,rejectUI,rowBadges,pendRows,allPending,cnt,panel,nextOrder,unpackaged,recentSold,packSale,relist,setFields,stockUI,locUI,editPending,editBuyerUI,cardStatus};
+})();
+/* ═══ PAYPAL PAY LINK / REQUEST (static page: no PayPal API secrets, so a request = pay link sent by email or text) ═══ */
+
+const Pay=(()=>{
+  function store(){const all=DS.all().filter(i=>i.status!=='ended').sort((a,b)=>(b.id||0)-(a.id||0));const nw=all[0];return{name:nw?.storeName||CFG.NAME||'My Store',phone:nw?.phone||CFG.PHONE||'',addr:nw?.addr||CFG.ADDRESS||''}}
+  function url(lines){
+    const p=new URLSearchParams({cmd:'_cart',upload:'1',business:CFG.PP_EMAIL||'',currency_code:CFG.PP_CUR});
+    lines.forEach((b,i)=>{const n=i+1;p.set('item_name_'+n,b.title||'Item');p.set('item_number_'+n,String(b.sku||b.id||''));p.set('amount_'+n,(+b.price||0).toFixed(2));p.set('quantity_'+n,b.qty||1);p.set('shipping_'+n,(+b.ship||0).toFixed(2))});
+    return'https://www.paypal.com/cgi-bin/webscr?'+p.toString();
+  }
+  const sums=lines=>{const sub=lines.reduce((s,b)=>s+(+b.price||0)*(b.qty||1),0),ship=lines.reduce((s,b)=>s+(+b.ship||0),0);return{sub,ship,tot:sub+ship}};
+  function text(st,lines,link,order){
+    const m=sums(lines);
+    return'Hello,\n\nHere is your payment request from '+st.name+(order?' (order #'+order+')':'')+':\n\n'+
+      lines.map(b=>(b.qty||1)+' x '+(b.title||'Item')+(b.id?' (#'+b.id+(b.sku?', stock '+b.sku:'')+')':'')+'  $'+((+b.price||0)*(b.qty||1)).toFixed(2)).join('\n')+
+      '\n\nShipping: $'+m.ship.toFixed(2)+'\nTotal: $'+m.tot.toFixed(2)+'\n\nPay securely with PayPal:\n'+link+'\n\n'+st.name+(st.phone?'\n'+st.phone:'')+(st.addr?'\n'+st.addr:'');
+  }
+  function _open(u){const a=document.createElement('a');a.href=u;a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}
+  // kind: 'mail' | 'sms' | 'copy'. Returns true when the request was handed off.
+  async function send(kind,lines,buyer,order){
+    buyer=buyer||{};
+    if(!CFG.PP_EMAIL){Toast('Set your PayPal email first');return false}
+    if(!lines.length){Toast('Nothing to request');return false}
+    const st=store(),link=url(lines),body=text(st,lines,link,order);
+    if(kind==='copy'){try{await navigator.clipboard.writeText(body);Toast('Request + pay link copied')}catch(e){prompt('Copy this request:',body)}return true}
+    if(kind==='mail'){
+      const em=String(buyer.email||'').trim();if(!/^\S+@\S+\.\S+$/.test(em)){Toast('Enter a valid buyer email');return false}
+      _open('mailto:'+em+'?subject='+encodeURIComponent('Payment request from '+st.name+(order?' - order #'+order:''))+'&body='+encodeURIComponent(body));return true;
+    }
+    if(kind==='sms'){
+      const ph=String(buyer.phone||'').trim();if(ph.replace(/\D/g,'').length<7){Toast('Enter the buyer phone number');return false}
+      const m=sums(lines);
+      _open('sms:'+ph.replace(/[^\d+]/g,'')+'?&body='+encodeURIComponent(st.name+' payment request'+(order?' #'+order:'')+': $'+m.tot.toFixed(2)+'\n'+link));return true;
+    }
+    return false;
+  }
+  return{store,url,sums,text,send};
+})();
+
+const Rc=(()=>{
+  const p2=n=>String(n).padStart(2,'0');
+  function fname(d){d=d||new Date();return'receipt_'+p2(d.getMonth()+1)+p2(d.getDate())+d.getFullYear()+'_'+p2(d.getHours())+p2(d.getMinutes())+p2(d.getSeconds())+'.png'}
+  function wrap(cx,t,w){
+    t=String(t||'');const out=[];let ln='';
+    for(const word of t.split(/(\s+)/)){
+      if(cx.measureText(ln+word).width<=w){ln+=word;continue}
+      if(ln.trim())out.push(ln.trim());ln='';
+      if(cx.measureText(word).width<=w){ln=word.trimStart();continue}
+      for(const ch of word){if(cx.measureText(ln+ch).width>w){out.push(ln);ln=ch}else ln+=ch}
+    }
+    if(ln.trim()||!out.length)out.push(ln.trim());return out;
+  }
+  function draw(o){
+    const W=1000,pad=32,S=2,st=o.store||{},ln=o.lines||[],dt=o.date||new Date();
+    const cQ=pad+10,cI=pad+66,cS=pad+150,cT=pad+318,pR=W-pad-112,sR=W-pad-10,tW=pR-98-cT,sW=cT-cS-14;
+    const buyer=o.buyer||{};const bl=[['Name',buyer.name],['Company',buyer.company],['Email',buyer.email],['Phone',buyer.phone],['Zip',buyer.zip]].filter(r=>r[1]&&String(r[1]).trim());
+    const m=Pay.sums(ln);
+    function render(x,Hbg){
+      x.fillStyle='#fff';x.fillRect(0,0,W,Hbg);x.textBaseline='alphabetic';x.textAlign='left';
+      let y=pad+22;
+      x.fillStyle='#111';x.font='bold 24px Arial';
+      let nm=String(st.name||'Store');while(nm.length>1&&x.measureText(nm).width>W-2*pad-260)nm=nm.slice(0,-1);
+      x.fillText(nm,pad,y);
+      x.textAlign='right';x.fillStyle='#444';x.font='bold 13px Arial';
+      if(o.order)x.fillText('ORDER #'+o.order,W-pad,y-8);
+      x.fillStyle='#999';x.font='11px Arial';x.fillText(dt.toLocaleDateString()+' '+dt.toLocaleTimeString(),W-pad,y+8);x.textAlign='left';
+      x.fillStyle='#555';x.font='12px Arial';
+      if(st.phone){y+=20;x.fillText('Phone: '+st.phone,pad,y)}
+      if(st.addr){y+=18;x.fillText('Address: '+st.addr,pad,y)}
+      y+=24;
+      x.fillStyle='#f0f0f0';x.fillRect(pad,y,W-2*pad,28);x.strokeStyle='#ccc';x.lineWidth=1;x.strokeRect(pad+.5,y+.5,W-2*pad-1,27);
+      x.fillStyle='#333';x.font='bold 11px Arial';const hy=y+18;
+      x.fillText('QTY',cQ,hy);x.fillText('ITEM ID',cI,hy);x.fillText('STOCK #',cS,hy);x.fillText('TITLE',cT,hy);
+      x.textAlign='right';x.fillText('PRICE',pR,hy);x.fillText('SHIP',sR,hy);x.textAlign='left';
+      y+=28;
+      ln.forEach(b=>{
+        x.font='13px Arial';const tl=wrap(x,b.title||'',tW);
+        x.font='12px monospace';const sl=wrap(x,b.sku||'',sW);
+        const n=Math.max(tl.length,sl.length,1),h=n*17+12;
+        x.strokeStyle='#ccc';x.strokeRect(pad+.5,y+.5,W-2*pad-1,h);
+        x.fillStyle='#111';x.font='13px Arial';x.fillText(String(b.qty||1),cQ,y+19);
+        x.font='12px monospace';x.fillText(b.id!=null&&b.id!==''?'#'+b.id:'',cI,y+19);
+        sl.forEach((t,i)=>x.fillText(t,cS,y+19+i*17));
+        x.font='13px Arial';tl.forEach((t,i)=>x.fillText(t,cT,y+19+i*17));
+        x.textAlign='right';x.fillText('$'+((+b.price||0)*(b.qty||1)).toFixed(2),pR,y+19);x.fillText('$'+(+b.ship||0).toFixed(2),sR,y+19);x.textAlign='left';
+        y+=h;
+      });
+      y+=22;const sx=W-pad-270;
+      x.font='13px Arial';x.fillStyle='#111';
+      x.fillText('Items',sx,y);x.textAlign='right';x.fillText('$'+m.sub.toFixed(2),W-pad,y);x.textAlign='left';y+=20;
+      x.fillText('Shipping',sx,y);x.textAlign='right';x.fillText('$'+m.ship.toFixed(2),W-pad,y);x.textAlign='left';y+=10;
+      x.fillStyle='#111';x.fillRect(sx,y,270,2);y+=23;
+      x.font='bold 17px Arial';x.fillText('Total',sx,y);x.textAlign='right';x.fillText('$'+m.tot.toFixed(2),W-pad,y);x.textAlign='left';
+      if(bl.length){
+        y+=26;x.setLineDash([4,3]);x.strokeStyle='#aaa';x.beginPath();x.moveTo(pad,y);x.lineTo(W-pad,y);x.stroke();x.setLineDash([]);
+        y+=20;x.fillStyle='#777';x.font='bold 10px Arial';x.fillText('BUYER',pad,y);
+        x.font='13px Arial';x.fillStyle='#111';
+        bl.forEach((r,i)=>{const col=i%2,row=Math.floor(i/2);x.fillText(r[0]+': '+r[1],pad+col*(W/2-pad),y+20+row*20)});
+        y+=20+Math.ceil(bl.length/2)*20-8;
+      }
+      y+=34;x.fillStyle='#999';x.font='11px Arial';x.textAlign='center';x.fillText('Thank you for your business',W/2,y);x.textAlign='left';
+      return y+pad;
+    }
+    const sc=document.createElement('canvas');sc.width=1;sc.height=1;
+    const H=Math.ceil(render(sc.getContext('2d'),1));
+    const c=document.createElement('canvas');c.width=W*S;c.height=H*S;const x=c.getContext('2d');x.scale(S,S);render(x,H);
+    return c;
+  }
+  function show(c,name){
+    const url=c.toDataURL('image/png');
+    const old=$('bkimgmod');if(old)old.remove();
+    const d=document.createElement('div');d.id='bkimgmod';
+    d.innerHTML=`<img src="${url}" alt="Receipt"><div style="display:flex;gap:8px"><a class="pill" href="${url}" download="${E(name)}" style="text-decoration:none;display:inline-flex;align-items:center">⬇ Download ${E(name)}</a><button type="button" class="pill" id="bkimgx">✕ Close</button></div>`;
+    d.onclick=e=>{if(e.target===d||e.target.id==='bkimgx')d.remove()};
+    document.body.appendChild(d);
+  }
+  function png(o){const c=draw(o);show(c,fname(o.date||new Date()))}
+  return{fname,draw,show,png};
+})();
+
+const Pk=(()=>{
+  const FN='packages.b64';
+  let ents=[],shown=40,fq='',fd='',selId=null;
+  const p2=n=>String(n).padStart(2,'0');
+  const fDate=ts=>new Date(ts).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',year:'numeric'}).replace(',','.');
+  const fTime=ts=>new Date(ts).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+  const dayKey=ts=>{const a=new Date(ts);return a.getFullYear()+'-'+p2(a.getMonth()+1)+'-'+p2(a.getDate())};
+  const isNoStock=v=>/^no\s*stock$/i.test(String(v||'').trim());
+  function normDims(v){const m=String(v||'').trim().match(/^(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)$/);return m?m[1]+'x'+m[2]+'x'+m[3]:null}
+  /* ── file I/O (merge by entry id, newest wins, so several workstations never lose each other's entries) ── */
+  async function _read(){
+    const d=DB.dir();if(!d)return null;
+    try{const fh=await d.getFileHandle(FN);const o=Pkt.dec(await(await fh.getFile()).text());return o&&Array.isArray(o.packages)?o.packages:[]}
+    catch(e){return e&&e.name==='NotFoundError'?[]:null}
+  }
+  function _merge(a,b){const m=new Map();[...a,...b].forEach(e=>{if(!e||!e.id)return;const c=m.get(e.id);if(!c||(e.u||0)>=(c.u||0))m.set(e.id,e)});return[...m.values()]}
+  async function load(){const d=await _read();if(d===null)return false;ents=_merge(ents,d);return true}
+  async function _save(){
+    if(!await DB.ready()){Toast('Link the B64 folder first');return false}
+    const disk=await _read();ents=_merge(ents,disk||[]);
+    try{const fh=await DB.dir().getFileHandle(FN,{create:true});const w=await fh.createWritable();await w.write(Pkt.enc({v:1,ts:Date.now(),packages:ents}));await w.close();return true}
+    catch(e){Toast('packages.b64 write failed: '+e.message);return false}
+  }
+  const maxOrder=()=>Math.max(100000,...ents.map(x=>x.order||0));
+  async function _add(e){
+    await load();const now=Date.now();
+    const full={id:'pk'+now.toString(36)+Math.random().toString(36).slice(2,5),order:e.order||await Sx.nextOrder(),ts:now,u:now,done:false,del:false,qty:1,...e};
+    ents.push(full);const ok=await _save();
+    if(!ok)Toast('Entry kept in memory only, packages.b64 NOT saved',5000);
+    return full;
+  }
+  const live=()=>ents.filter(e=>!e.del).sort((a,b)=>(b.ts||0)-(a.ts||0));
+  /* ── Packaged form (from the item details page) ── */
+  function packaged(){
+    const it=Det.current();
+    if(!Vnd.on())return;
+    if(!it||it.status==='ended'){Toast('Open an active listing first');return}
+    _form(it);
+  }
+  const days=ts=>Math.max(0,Math.floor((Date.now()-ts)/864e5));
+  const buyerTxt=b=>b?[b.name,b.company,b.phone,b.email,b.zip].filter(Boolean).join(' · '):'';
+  function _form(it){
+    const old=$('pkform');if(old)old.remove();
+    const now=Date.now(),t1=Sx.toks(it.sku);
+    // stock # ghost: only when the listing holds exactly one stock number
+    const gSku=t1.length===1?t1[0]:'',gWt=it.weight||'',gDim=it.dims||'',gIni=(it.initials||'').toUpperCase();
+    const pend=Sx.live(it).slice().sort((a,b)=>b.ts-a.ts),sales=Sx.unpackaged(it);
+    const d=document.createElement('div');d.id='pkform';
+    d.innerHTML=`<div class="pkf-box">
+      <div class="pkf-h"><span>📦 Package entry</span><button type="button" class="pkf-x" id="pkf-x">✕</button></div>
+      <div class="pkf-row"><div class="pkf-f"><label>Date</label><div class="pkf-ro">${fDate(now)}</div></div><div class="pkf-f"><label>Time</label><div class="pkf-ro">${fTime(now)}</div></div><div class="pkf-f"><label>ID</label><div class="pkf-ro">#${it.id}</div></div></div>
+      <div class="pkf-f"><label>Item title</label><div class="pkf-ro">${E(it.title||'')}</div></div>
+      ${sales.length?`<div class="pkf-pend pkf-sold"><div class="pkf-pt">✔ Sold, not packaged yet (newest first). Click one to package it: quantity and stock # were already adjusted when it was sold</div>${sales.map(x=>`<div class="pkf-po pkf-so" data-sa="${x.id}"><b>${x.qty} x</b> ${E((x.skus||[]).join(', '))||'<i>no stock #</i>'}<span class="pkf-pb">${E(buyerTxt(x.buyer))}</span><span class="pkf-pd">sold ${days(x.ts)}d ago${x.order?' · PO '+x.order:''}</span></div>`).join('')}</div>`:''}
+      ${pend.length?`<div class="pkf-pend"><div class="pkf-pt">⏳ Pending orders on this listing (newest first). Click one to fulfil it as this package</div>${pend.map(p=>`<div class="pkf-po" data-p="${p.id}"><b>${p.qty} x</b> ${E((p.skus||[]).join(', '))||'<i>no stock #</i>'}<span class="pkf-pb">${E(buyerTxt(p.buyer))||'<i>no buyer info</i>'}</span><span class="pkf-pd">${days(p.ts)}d pending${p.order?' · PO '+p.order:''}</span><button type="button" class="pkf-ed" data-e="${p.id}" title="Edit buyer info">✎</button></div>`).join('')}</div>`:''}
+      <div class="pkf-row">
+        <div class="pkf-f"><label>Stock number *</label><input id="pkf-sku" class="pkf-req" type="text" autocomplete="off" placeholder="${E(gSku||'click and type (double-click = No Stock)')}" data-g="${E(gSku)}"></div>
+        <div class="pkf-f"><label>Weight (lbs) *</label><input id="pkf-wt" class="pkf-req" type="text" autocomplete="off" placeholder="${E(gWt||'enter weight')}" data-g="${E(gWt)}"></div>
+      </div>
+      <div class="pkf-hint">Click the two green-outlined fields to confirm them (a faded value is filled in from the listing). No stock number on the listing? Click and type it, or double-click the field to set No Stock.</div>
+      <div class="pkf-row">
+        <div class="pkf-f"><label>Size L x W x H</label><input id="pkf-dim" type="text" autocomplete="off" placeholder="${E(gDim||'16x12x8')}"></div>
+        <div class="pkf-f"><label>Initials</label><input id="pkf-ini" type="text" maxlength="2" autocomplete="off" placeholder="${E(gIni||'AB')}" style="text-transform:uppercase"></div>
+        <div class="pkf-f"><label>Quantity</label><input id="pkf-qty" type="number" min="1" placeholder="1"></div>
+        <div class="pkf-f"><label>Price</label><input id="pkf-price" type="number" min="0" step="0.01" value="${(it.price||0).toFixed(2)}"></div>
+        <div class="pkf-f"><label>Shipping</label><input id="pkf-ship" type="number" min="0" step="0.01" value="${(+it.shipping||0).toFixed(2)}"></div>
+      </div>
+      <div class="pkf-b"><button type="button" class="pill on" id="pkf-ok" disabled>✓ Submit package</button><button type="button" class="pill" id="pkf-cx">Cancel</button></div>
+    </div>`;
+    document.body.appendChild(d);
+    const chk=()=>{$('pkf-ok').disabled=!($('pkf-sku').value.trim()&&$('pkf-wt').value.trim())};
+    ['pkf-sku','pkf-wt'].forEach(id=>{
+      const el=$(id);
+      const mark=()=>{el.classList.toggle('ok',!!el.value.trim());chk()};
+      const touch=()=>{const g=el.dataset.g||'';if(!el.value.trim()&&g)el.value=g;mark()};
+      el.addEventListener('focus',touch);el.addEventListener('click',touch);el.addEventListener('input',mark);
+    });
+    $('pkf-sku').addEventListener('dblclick',()=>{const el=$('pkf-sku');el.value='No Stock';el.classList.add('ok');chk()});
+    $('pkf-ini').addEventListener('input',e=>{e.target.value=e.target.value.replace(/[^a-zA-Z]/g,'').toUpperCase().slice(0,2)});
+    const close=()=>d.remove();
+    $('pkf-x').onclick=close;$('pkf-cx').onclick=close;
+    d.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('mxmod'))close()});
+    const ctx={gDim,gIni,close,pend:null,sale:null};
+    const desel=()=>{d.querySelectorAll('.pkf-po').forEach(x=>x.classList.remove('sel'));ctx.pend=null;ctx.sale=null;$('pkf-qty').readOnly=false;$('pkf-price').readOnly=false};
+    const setSku=g=>{const sk=$('pkf-sku');sk.value='';sk.classList.remove('ok');sk.dataset.g=g;sk.placeholder=g||'click and type (double-click = No Stock)';chk()};
+    d.querySelectorAll('.pkf-po').forEach(r=>r.addEventListener('click',ev=>{
+      const eb=ev.target.closest('.pkf-ed');
+      if(eb){ev.stopPropagation();Sx.editBuyerUI(it.id,eb.dataset.e,()=>{d.remove();_form(DS.get(it.id))});return}
+      const wasSel=r.classList.contains('sel');desel();if(wasSel){setSku(gSku);return}
+      r.classList.add('sel');
+      if(r.dataset.p){const p=pend.find(x=>x.id===r.dataset.p);if(!p)return;ctx.pend=p;setSku((p.skus||[]).join(', '));$('pkf-qty').value=p.qty}
+      else{const x=sales.find(z=>z.id===r.dataset.sa);if(!x)return;ctx.sale=x;setSku((x.skus||[]).join(', '));$('pkf-qty').value=x.qty;$('pkf-qty').readOnly=true;$('pkf-price').value=(+x.price||0).toFixed(2);$('pkf-price').readOnly=true}
+    }));
+    $('pkf-ok').onclick=()=>_submit(it.id,ctx);
+    setTimeout(()=>$('pkf-sku').focus(),40);
+  }
+  async function _submit(id,o){
+    const it=DS.get(id);if(!it){Toast('Listing not found');return}
+    let sku=$('pkf-sku').value.trim();const wt=$('pkf-wt').value.trim();
+    if(!sku||!wt){Toast('Confirm stock number and weight');return}
+    const noStock=isNoStock(sku);if(noStock)sku='No Stock';
+    let dims=$('pkf-dim').value.trim()||o.gDim||'';
+    if(dims){const n=normDims(dims);if(!n){Toast('Size should look like 16x12x8');$('pkf-dim').focus();return}dims=n}
+    const ini=($('pkf-ini').value.trim()||o.gIni||'').toUpperCase();
+    if(ini&&!/^[A-Z]{2}$/.test(ini)){Toast('Initials: two letters');$('pkf-ini').focus();return}
+    const price=parseFloat($('pkf-price').value);if(!isFinite(price)||price<0){Toast('Enter a price');return}
+    const ship=parseFloat($('pkf-ship').value);if(!isFinite(ship)||ship<0){Toast('Enter the shipping cost (0 for none)');$('pkf-ship').focus();return}
+    $('pkf-ok').disabled=true;
+    await load();
+    let r,qty,order,buyer=null,fromSale=false;
+    if(o.sale){                       // already sold: quantity / stock # were adjusted when it was marked sold
+      fromSale=true;qty=o.sale.qty;order=o.sale.order||await Sx.nextOrder();buyer=o.sale.buyer?{...o.sale.buyer}:null;
+      r=await Sx.packSale(id,o.sale.id,{weight:wt,dims,order});
+    }else{
+      qty=Math.max(1,parseInt($('pkf-qty').value)||1);
+      if(qty>(it.stock||0)&&!confirm('Quantity '+qty+' is more than the '+(it.stock||0)+' in stock. Continue?')){$('pkf-ok').disabled=false;return}
+      const used=o.pend||Sx.live(it)[0]||null;            // chosen pending order, else the oldest pending one is consumed
+      order=(used&&used.order)||await Sx.nextOrder();buyer=used&&used.buyer?{...used.buyer}:null;
+      r=await Sx.sell(id,{qty,skus:noStock?'':sku,price,ts:Date.now(),src:'package',order,weight:wt,dims,pendId:o.pend?o.pend.id:undefined});
+    }
+    if(!r){$('pkf-ok').disabled=false;return}
+    let shipFlag=true;
+    if(Math.abs((+it.shipping||0)-ship)>0.004){const rs=await Sx.patch(id,u=>{u.shipping=ship});shipFlag=!!rs}   // shipping cost typed here becomes the listing's shipping cost
+    const fl=r.fl,e=await _add({order,itemId:id,title:it.title,sku,weight:wt,dims,init:ini,qty,price,ts:Date.now(),buyer,ship,saleId:fromSale?o.sale.id:(r.item.sales&&r.item.sales.length?r.item.sales[r.item.sales.length-1].id:undefined),
+      log:{packaged:true,weight:fl.weight,size:fl.size,sku:fromSale?true:fl.sku,qty:true,price:true,ship:shipFlag,status:fl.status}});
+    o.close();
+    Toast('Packaged, PO '+e.order+(r.item.oos?' · listing is now OUT OF STOCK':' · '+(r.item.stock||0)+' left'),4500);
+    try{Det.refresh()}catch(x){}
+    if($('pkmod')?.classList.contains('on'))_render(true);
+  }
+  /* ── Packages panel ── */
+  const STEPS=[['In stock','Listing is live with quantity and stock numbers.'],
+    ['Pending sold','Buyer was sent a pay request, or you marked it pending. Lasts 14 days. Quantity does not change yet.'],
+    ['Packaged / Sold','Approved or packaged: quantity and stock # come off the listing, the sale is recorded as a price record and a package entry with a PO number is created. If it was marked sold first, packaging changes nothing on the listing.'],
+    ['Done','The shipping label has been made and the Done checkmark is set in this list.'],
+    ['Out of stock','The last unit sold. The listing is kept (vendor lists only) and hidden from customers.'],
+    ['Relist','Quantity and stock numbers are added back from a package entry. The listing returns as in stock and appears as a new listing, keeping its item id and its sold/packaged history.'],
+    ['End','The listing is gone: no price records are kept, only the main picture.']];
+  function _ensureDom(){
+    if($('pkmod'))return;
+    const m=document.createElement('div');m.id='pkmod';
+    m.innerHTML=`<div class="pk-box">
+      <div class="pk-top"><b>📦 Packages</b>
+        <input id="pk-q" type="search" placeholder="Search: stock 2240, po 100001, id 75, title…" autocomplete="off" title="Prefixes: stock, po, id, title, init, name, company, email, phone, zip. Plain words search everything.">
+        <input id="pk-d" type="date" title="Pick a date">
+        <button type="button" class="pill" id="pk-clr">Clear</button>
+        <button type="button" class="pill on" id="pk-add">＋ Add entry</button>
+        <button type="button" class="pill" id="pk-ref" title="Reload packages.b64">↻ Refresh</button>
+        <button type="button" class="pill" id="pk-cls">✕</button></div>
+      <div class="pk-main"><div id="pk-side"></div>
+        <div id="pk-tbl"><table class="pk-t"><thead><tr><th title="Press after the shipping label is made">Done<small>after label</small></th><th>Date</th><th>Time</th><th>Title</th><th>Weight</th><th>Size</th><th>Init</th><th>Stock</th><th class="n">Qty</th><th class="n">Price</th><th class="n">Ship</th><th>ID</th><th title="Order number (click a PO to show it)">PO</th><th></th></tr></thead><tbody id="pk-body"></tbody></table><div id="pk-more"></div></div></div>
+      <div id="pk-foot"><span class="pk-fl">Item life cycle (data trail, keeps the item id):</span>${STEPS.map((x,i)=>`<span class="pk-step" tabindex="0" data-t="${E(x[1])}">${E(x[0])}</span>${i<STEPS.length-1?'<span class="pk-arr">→</span>':''}`).join('')}<span class="pk-fn">Press ✓ Done after the shipping label is made.</span></div>
+      <button type="button" id="pk-up" title="Back to top">↑ Top</button>
+    </div>`;
+    document.body.appendChild(m);
+    $('pk-q').addEventListener('input',e=>{fq=e.target.value;shown=40;_render(true)});
+    $('pk-d').addEventListener('change',e=>{fd=e.target.value;shown=40;_render(true)});
+    $('pk-clr').onclick=()=>{fq='';fd='';$('pk-q').value='';$('pk-d').value='';shown=40;_render(true)};
+    $('pk-add').onclick=addManual;$('pk-ref').onclick=refresh;$('pk-cls').onclick=close;
+    $('pk-up').onclick=()=>{$('pk-tbl').scrollTo({top:0,behavior:'smooth'})};
+    $('pk-tbl').addEventListener('scroll',_sc,{passive:true});
+    m.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('mxmod')){close()}});
+    m.addEventListener('click',e=>{if(e.target===m)close()});
+  }
+  // search: plain words match everything; "stock 2240", "po 100001", "id 75", "name smith" match one field
+  const KEYS={stock:'sku',sku:'sku',po:'po',order:'po',id:'id',title:'title',init:'init',initials:'init',name:'name',company:'company',email:'email',phone:'phone',zip:'zip',weight:'weight',size:'dims'};
+  function _parse(q){
+    const terms=[];let cur=null;
+    q.trim().split(/\s+/).filter(Boolean).forEach(w=>{
+      const k=KEYS[w.toLowerCase().replace(/[:=]$/,'')];
+      if(k&&w.toLowerCase()!==''){cur={k,v:[]};terms.push(cur)}
+      else if(cur)cur.v.push(w);else terms.push({k:'any',v:[w]});
+    });
+    return terms.filter(t=>t.v.length||t.k==='any').map(t=>({k:t.k,v:t.v.join(' ').toLowerCase().replace(/^#/,'')}));
+  }
+  const _match=e=>{
+    if(fd&&dayKey(e.ts)!==fd)return false;
+    if(!fq.trim())return true;
+    const b=e.buyer||{};
+    const f={sku:String(e.sku||'').toLowerCase(),po:String(e.order||''),id:String(e.itemId==null?'':e.itemId),title:String(e.title||'').toLowerCase(),init:String(e.init||'').toLowerCase(),
+      name:String(b.name||'').toLowerCase(),company:String(b.company||'').toLowerCase(),email:String(b.email||'').toLowerCase(),phone:String(b.phone||'').toLowerCase(),zip:String(b.zip||'').toLowerCase(),weight:String(e.weight||'').toLowerCase(),dims:String(e.dims||'').toLowerCase()};
+    const all=Object.values(f).join(' ')+' #'+f.po+' #'+f.id;
+    return _parse(fq).every(t=>{
+      if(t.k==='any')return all.includes(t.v);
+      if(t.k==='id'||t.k==='po')return f[t.k]===t.v||(t.v.length>=3&&f[t.k].startsWith(t.v));
+      return f[t.k].includes(t.v);
+    });
+  };
+  const _row=e=>`<tr class="pk-r${e.done?' done':''}${selId===e.id?' sel':''}${(e.pickup||e.init==='PKP')?' pkp':''}" data-id="${e.id}"><td><input type="checkbox" data-a="done" ${e.done?'checked':''} title="Done: press after the shipping label is made"></td><td>${fDate(e.ts)}</td><td>${fTime(e.ts)}</td><td class="pk-ti">${E(e.title||'')}${e.manual?' <span class="stbadge">MANUAL</span>':''}${e.relisted?' <span class="stbadge pend">RELISTED</span>':''}${e.pickup?' <span class="stbadge pku">PICKUP</span>':''}</td><td class="pk-ed" data-f="weight">${E(e.weight||'')||'—'}</td><td class="pk-ed" data-f="dims">${E(e.dims||'')||'—'}</td><td class="pk-ed" data-f="init">${E(e.init||'')||'—'}</td><td class="pk-ed" data-f="sku">${E(e.sku||'')||'<span style="color:var(--rd)">needed</span>'}</td><td class="pk-ed n" data-f="qty">${e.qty||1}</td><td class="pk-ed n" data-f="price">$${(+e.price||0).toFixed(2)}</td><td class="pk-ed n" data-f="ship">$${_shipOf(e).toFixed(2)}</td><td>${e.itemId!=null?'#'+e.itemId:'—'}</td><td class="pk-po" data-po="${e.order||''}" title="Click to show the order number">PO</td><td><button type="button" class="pk-del" data-a="del" title="Delete entry">✕</button></td></tr>`;
+  const _shipOf=e=>e.ship!=null?(+e.ship||0):(+(DS.get(e.itemId)?.shipping)||0);
+  let _view=[];
+  function _render(reset){
+    const body=$('pk-body');if(!body)return;
+    _view=live().filter(_match);
+    if(reset){shown=Math.max(40,Math.min(shown,_view.length||40))}
+    body.innerHTML=_view.slice(0,shown).map(_row).join('')||`<tr><td colspan="14" style="padding:26px;text-align:center;color:var(--t3)">No package entries</td></tr>`;
+    const mo=$('pk-more');if(mo)mo.textContent=_view.length>shown?'Scroll for more…':(_view.length?_view.length+' entr'+(_view.length===1?'y':'ies'):'');
+  }
+  let _scT=0;
+  function _sc(){
+    const t=$('pk-tbl');if(!t)return;
+    $('pk-up').classList.toggle('on',t.scrollTop>400);
+    if(t.scrollTop+t.clientHeight>=t.scrollHeight-300&&shown<_view.length){shown+=40;$('pk-body').insertAdjacentHTML('beforeend',_view.slice(shown-40,shown).map(_row).join(''));const mo=$('pk-more');if(mo)mo.textContent=_view.length>shown?'Scroll for more…':_view.length+' entries'}
+    clearTimeout(_scT);_scT=setTimeout(_saveScroll,250);
+  }
+  function _saveScroll(){const t=$('pk-tbl');if(!t)return;try{localStorage.setItem('pk_scroll',JSON.stringify({top:t.scrollTop,shown}))}catch(e){}}
+  async function open(){
+    if(!Vnd.on())return;
+    if(!await DB.ensure())return;
+    _ensureDom();await load();_wire();
+    let sv=null;try{sv=JSON.parse(localStorage.getItem('pk_scroll')||'null')}catch(e){}
+    shown=Math.max(40,(sv&&sv.shown)||40);
+    $('pkmod').classList.add('on');_render(false);_side(null);
+    const t=$('pk-tbl');requestAnimationFrame(()=>{t.scrollTop=(sv&&sv.top)||0;_sc()});
+  }
+  function close(){_saveScroll();$('pkmod')?.classList.remove('on')}
+  async function refresh(){
+    const t=$('pk-tbl'),top=t?t.scrollTop:0;
+    if(!await load()){Toast('Could not read packages.b64');return}
+    _render(false);if(t)t.scrollTop=top;Toast('Packages refreshed');
+  }
+  function _wire(){
+    const body=$('pk-body');if(!body||body._w)return;body._w=true;
+    body.addEventListener('click',async ev=>{
+      const tr=ev.target.closest('tr[data-id]');if(!tr)return;const id=tr.dataset.id,e=ents.find(x=>x.id===id);if(!e)return;
+      const a=ev.target.closest('[data-a]');
+      if(a&&a.dataset.a==='done'){e.done=a.checked;e.u=Date.now();tr.classList.toggle('done',e.done);await _save();return}
+      if(a&&a.dataset.a==='del'){if(!confirm('Delete this package entry?'))return;e.del=true;e.u=Date.now();await _save();
+        if(e.saleId&&e.itemId!=null){const li=DS.get(e.itemId);if(li&&li.status!=='ended'&&(li.sales||[]).some(z=>z.id===e.saleId&&(z.src==='sold'||z.src==='pending'))){Sx.patch(e.itemId,u=>{const s=(u.sales||[]).find(z=>z.id===e.saleId);if(s)delete s.pk}).then(()=>{try{Det.refresh()}catch(x){}})}}if(selId===id){selId=null;_side(null)}_render(false);return}
+      const po=ev.target.closest('td.pk-po');if(po){po.textContent=po.textContent==='PO'?'#'+(e.order||''):'PO';return}
+      const td=ev.target.closest('td.pk-ed');if(td){if(!td.querySelector('input'))_edit(td,e);return}
+      select(id);
+    });
+  }
+  // listing sync: an edit in the packages list is written back to the listing (size, weight, stock number, quantity, price, shipping cost)
+  const LOGK={weight:'weight',dims:'size',sku:'sku',qty:'qty',price:'price',ship:'ship'};
+  async function _sync(e,f,v,old){
+    if(!(f in LOGK))return;
+    (e.log=e.log||{})[LOGK[f]]=true;e.u=Date.now();
+    const it=e.itemId!=null?DS.get(e.itemId):null;
+    if(!it||e.manual){await _save();if(selId===e.id)_side(e);return}
+    if(it.status==='ended'){await _save();Toast('Listing is ended: only the package entry was changed');if(selId===e.id)_side(e);return}
+    const T=Sx.toks;
+    const r=await Sx.patch(e.itemId,u=>{
+      const s=(u.sales||[]).find(z=>z.id===e.saleId);
+      if(f==='weight')u.weight=String(v||'');
+      else if(f==='dims')u.dims=String(v||'');
+      else if(f==='ship')u.shipping=+v||0;
+      else if(f==='price'){if(s)s.price=+v||0}
+      else if(f==='qty'){const d=(parseInt(v)||1)-(parseInt(old)||1);if(s)s.qty=parseInt(v)||1;u.stock=Math.max(0,(u.stock||0)-d);u.soldQty=Math.max(0,(u.soldQty||0)+d);u.oos=u.stock<=0}
+      else if(f==='sku'){
+        const nu=T(v),gone=isNoStock(old)?[]:T(old);let have=T(u.sku);
+        have=have.filter(t=>!nu.some(n=>n.toLowerCase()===t.toLowerCase()));                                   // new stock number leaves the listing
+        gone.forEach(t=>{if(!have.some(h=>h.toLowerCase()===t.toLowerCase()))have.push(t)});               // the old one goes back on it
+        u.sku=have.join(', ');if(s)s.skus=isNoStock(v)?[]:nu;
+      }
+    });
+    await _save();
+    if(r){Toast('Listing updated: '+({weight:'weight',dims:'size',ship:'shipping cost',price:'price',qty:'quantity and stock',sku:'stock number'})[f]);try{Det.refresh()}catch(x){}}
+    if(selId===e.id)_side(e);
+  }
+  function _edit(td,e){
+    const f=td.dataset.f,inp=document.createElement('input');inp.className='pk-in';inp.value=f==='qty'?(e.qty||1):(f==='price'?(+e.price||0).toFixed(2):(f==='ship'?_shipOf(e).toFixed(2):(e[f]||'')));if(f==='init')inp.maxLength=2;if(f==='qty'){inp.type='number';inp.min=1}if(f==='price'||f==='ship'){inp.type='number';inp.min=0;inp.step='0.01'}
+    td.textContent='';td.appendChild(inp);inp.focus();inp.select();let fin=false;
+    if(f==='sku')inp.addEventListener('dblclick',()=>{inp.value='No Stock'});
+    const end=async sv=>{
+      if(fin)return;fin=true;
+      if(sv){let v=inp.value.trim();
+        if(f==='init')v=v.toUpperCase().replace(/[^A-Z]/g,'').slice(0,2);
+        if(f==='dims'&&v){const n=normDims(v);if(!n){Toast('Size should look like 16x12x8');v=e.dims||''}else v=n}
+        if(f==='sku'){if(!v){Toast('Stock number is required (double-click the field for No Stock)');v=e.sku||''}else if(isNoStock(v))v='No Stock'}
+        if(f==='qty'){const n=parseInt(v);v=n>=1?n:(e.qty||1)}
+        if(f==='price'||f==='ship'){const n=parseFloat(v);v=(isFinite(n)&&n>=0)?Math.round(n*100)/100:(f==='ship'?_shipOf(e):(+e.price||0))}
+        const was=f==='ship'?_shipOf(e):(f==='price'?(+e.price||0):e[f]);if(v!==(was||'')&&v!==was){const old=e[f]!=null?e[f]:was;e[f]=v;e.u=Date.now();await _save();await _sync(e,f,v,old)}}
+      td.innerHTML=(f==='price'||f==='ship')?'$'+(f==='ship'?_shipOf(e):(+e.price||0)).toFixed(2):f==='sku'&&!e.sku?'<span style="color:var(--rd)">needed</span>':(E(e[f]==null||e[f]===''?'—':e[f]));
+    };
+    inp.addEventListener('blur',()=>end(true));
+    inp.addEventListener('keydown',k=>{if(k.key==='Enter')inp.blur();else if(k.key==='Escape')end(false)});
+  }
+  function addManual(){
+    Mx.form({title:'Add package entry (manual)',fields:[
+      {k:'title',label:'Title *',value:''},{k:'price',label:'Price *',type:'number',min:0,step:'0.01',value:''},
+      {k:'sku',label:'Stock number * (double-click = No Stock)',value:'',dbl:'No Stock'},
+      {k:'weight',label:'Weight',value:''},{k:'dims',label:'Size L x W x H',value:'',ph:'16x12x8'},{k:'init',label:'Initials',value:'',ph:'AB'},{k:'qty',label:'Quantity',type:'number',min:1,value:1}],ok:'＋ Add entry',
+      onOk:v=>{
+        const title=v.title.trim(),price=parseFloat(v.price),sku=v.sku.trim();
+        if(!title){Toast('Title required');return false}
+        if(!isFinite(price)||price<0){Toast('Price required');return false}
+        if(!sku){Toast('Stock number required (or double-click for No Stock)');return false}
+        let dims=v.dims.trim();if(dims){const n=normDims(dims);if(!n){Toast('Size should look like 16x12x8');return false}dims=n}
+        _add({manual:true,itemId:null,title,price,sku:isNoStock(sku)?'No Stock':sku,weight:v.weight.trim(),dims,init:v.init.trim().toUpperCase().replace(/[^A-Z]/g,'').slice(0,2),qty:Math.max(1,parseInt(v.qty)||1),log:null}).then(()=>{if($('pkmod')?.classList.contains('on'))_render(true);Toast('Entry added')});
+      }});
+  }
+  /* ── left detail pane for entries made from an item page ── */
+  function select(id){
+    const e=ents.find(x=>x.id===id);if(!e)return;
+    if(e.manual||e.itemId==null){Toast('No listing found for this entry');return}
+    selId=id;document.querySelectorAll('#pk-body tr.sel').forEach(r=>r.classList.remove('sel'));
+    document.querySelector('#pk-body tr[data-id="'+id+'"]')?.classList.add('sel');
+    _side(e);
+  }
+  function _side(e){
+    const el=$('pk-side');if(!el)return;
+    if(!e){el.classList.remove('on');el.innerHTML='';return}
+    const it=DS.get(e.itemId),ic=DS.imgs(e.itemId),src=ic?.images?.[0]||ic?.thumbs?.[0]||'';
+    const L=e.log||{};
+    const ck=(ok,t)=>`<li class="${ok?'ok':'no'}">${ok?'✓':'✗'} ${t}</li>`;
+    const b=e.buyer||{},hasB=!!(b.name||b.company||b.zip||b.phone||b.email);
+    const canRelist=Vnd.on()&&it&&it.status!=='ended'&&!e.relisted;
+    el.classList.add('on');
+    el.innerHTML=`<button type="button" class="pk-sx" data-s="x" title="Close">✕</button>
+      ${src?`<img class="pk-img" src="${src}" alt="">`:'<div class="pk-img ph">No image</div>'}
+      <div class="pk-st${it?' link':''}" ${it?'data-s="open" title="Open this listing\'s details page"':''}>${E(e.title||'')}${it?' ↗':''}</div>
+      <div class="pk-or">PO ${e.order||''} · ${fDate(e.ts)} ${fTime(e.ts)}</div>
+      <ul class="pk-ck">${ck(L.packaged!==false,e.pickup?'Picked up (PKP)':'Packaged')}${e.pickup?'':ck(!!L.weight,'Weight adjusted')+ck(!!L.size,'Size adjusted')}${ck(!!L.sku,'Stock number adjusted')}${ck(!!L.qty,'Quantity adjusted')}${ck(!!L.price,'Price adjusted')}${e.pickup?'':ck(!!L.ship,'Shipping cost adjusted')}</ul>
+      <div class="pk-ls">Listing status: <b>${it?E(Sx.status(it)):'Listing no longer exists'}</b>${e.relisted?' <span class="stbadge pend">RELISTED</span>':''}${L.status&&it&&L.status!==Sx.status(it)?` <span style="color:var(--t3)">(was ${E(L.status)} when packaged)</span>`:''}</div>
+      ${canRelist?'<button type="button" class="pill" data-s="relist" style="width:100%;margin-bottom:10px">♻ Relist (add quantity + stock # back)</button>':''}
+      <div class="pk-ac"><button type="button" class="pill" data-s="inv">💳 Send PayPal invoice</button><button type="button" class="pill" data-s="png">🖼 Save PNG receipt</button><button type="button" class="pill" data-s="buy">👤 ${hasB?'Show buyer info':'Attach buyer info'}</button></div>
+      <div id="pk-buyer" style="display:none"><div class="mx-f"><label>Name</label><input id="pkb-n" value="${E(b.name||'')}"></div><div class="mx-f"><label>Company</label><input id="pkb-c" value="${E(b.company||'')}"></div><div class="mx-f"><label>Zip code</label><input id="pkb-z" value="${E(b.zip||'')}"></div><div class="mx-f"><label>Phone</label><input id="pkb-p" type="tel" value="${E(b.phone||'')}"></div><div class="mx-f"><label>Email</label><input id="pkb-e" type="email" value="${E(b.email||'')}"></div><button type="button" class="pill on" data-s="bsv" style="width:100%">Save buyer info</button></div>`;
+    el.onclick=async ev=>{
+      const t=ev.target.closest('[data-s]');if(!t)return;const k=t.dataset.s;
+      if(k==='x'){selId=null;document.querySelectorAll('#pk-body tr.sel').forEach(r=>r.classList.remove('sel'));_side(null)}
+      else if(k==='open'){if(DS.get(e.itemId)){close();Det.open(e.itemId)}else Toast('Listing no longer exists')}
+      else if(k==='buy'){const bx=$('pk-buyer');bx.style.display=bx.style.display==='none'?'block':'none'}
+      else if(k==='bsv'){e.buyer={name:$('pkb-n').value.trim(),company:$('pkb-c').value.trim(),zip:$('pkb-z').value.trim(),phone:$('pkb-p').value.trim(),email:$('pkb-e').value.trim()};e.u=Date.now();if(await _save())Toast('Buyer info saved');_side(e)}
+      else if(k==='png')_png(e);
+      else if(k==='inv')_invoice(e);
+      else if(k==='relist')_relist(e);
+    };
+  }
+  const _lines=e=>[{qty:e.qty||1,id:e.itemId,sku:e.sku,title:e.title,price:+e.price||0,ship:_shipOf(e)}];
+  function _png(e){
+    const b=e.buyer||{},by={};['name','company','zip','phone','email'].forEach(k=>{if(b[k]&&String(b[k]).trim())by[k]=String(b[k]).trim()});
+    Rc.png({store:Pay.store(),date:new Date(),order:e.order,lines:_lines(e),buyer:by});
+  }
+  function _invoice(e){
+    const b=e.buyer||{};
+    Mx.form({title:'Send PayPal invoice',note:E(e.title||'')+'<br>The buyer receives a PayPal pay link with the receipt text.',fields:[{k:'email',label:'Buyer email',type:'email',value:b.email||''},{k:'phone',label:'Buyer phone (text)',type:'tel',value:b.phone||''}],
+      buttons:[{key:'mail',label:'✉ Email'},{key:'sms',label:'💬 Text'},{key:'copy',label:'🔗 Copy'}],
+      onOk:(v,k)=>{
+        Pay.send(k,_lines(e),{email:v.email,phone:v.phone},e.order).then(async ok=>{if(ok&&(v.email.trim()||v.phone.trim())){e.buyer={...(e.buyer||{}),...(v.email.trim()?{email:v.email.trim()}:{}),...(v.phone.trim()?{phone:v.phone.trim()}:{})};e.u=Date.now();await _save()}});
+      }});
+  }
+  // relist: quantity + stock numbers go back on the listing, it returns as in stock / new, item id and history are kept
+  function _relist(e){
+    const it=DS.get(e.itemId);if(!it){Toast('Listing no longer exists');return}
+    const pk=[...($('efpkg')?.options||[])].map(o=>({v:o.value,t:o.textContent}));
+    Mx.form({title:'Relist this item',note:E(it.title||'')+'<br><span style="color:var(--t3)">Adds quantity and stock number back, sets the listing In stock and shows it as a new listing. The package keeps its history.</span>',
+      fields:[{k:'sku',label:'Stock number(s) to add back',value:isNoStock(e.sku)?'':(e.sku||'')},{k:'qty',label:'Quantity to add back',type:'number',min:1,value:e.qty||1},
+        {k:'price',label:'Price',type:'number',min:0,step:'0.01',value:(it.price||e.price||0).toFixed(2)},{k:'ship',label:'Shipping cost',type:'number',min:0,step:'0.01',value:(+it.shipping||0).toFixed(2)}],ok:'♻ Relist',
+      onOk:v=>{
+        const q=parseInt(v.qty);if(!q||q<1){Toast('Enter a quantity');return false}
+        const price=parseFloat(v.price),ship=parseFloat(v.ship);
+        Sx.relist(e.itemId,{sku:v.sku,qty:q,price:isFinite(price)?price:undefined,ship:isFinite(ship)?ship:undefined,pkg:v.pkg,order:e.order}).then(async r=>{
+          if(!r)return;e.relisted=Date.now();e.u=Date.now();await _save();
+          Toast('Relisted: '+(r.item.stock||0)+' in stock');_side(e);_render(false);try{Det.refresh()}catch(x){}
+        });
+      }});
+  }
+  const _open=open;
+  async function openPanel(){await _open()}
+  function toTop(){$('pk-tbl')?.scrollTo({top:0})}
+  return{open:openPanel,close,refresh,packaged,addManual,toTop,load,maxOrder,_add,_read,_merge,live};
+})();
+
+const Pu=(()=>{
+  const KEY='pu_cart';
+  let lines=[],cust={name:'',company:'',phone:'',email:''};
+  try{const o=JSON.parse(localStorage.getItem(KEY)||'null');if(o){lines=Array.isArray(o.lines)?o.lines:[];cust={...cust,...(o.cust||{})}}}catch(e){}
+  const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({lines,cust}))}catch(e){}};
+  const isNoStock=v=>/^no\s*stock$/i.test(String(v||'').trim());
+  const money=n=>'$'+(+n||0).toFixed(2);
+  const tot=a=>a.reduce((s,l)=>s+(+l.price||0)*(l.qty||1),0);
+  function badge(){const b=$('ab-pu');if(b)b.innerHTML='<i class="fa-solid fa-store"></i> Pickup'+(lines.length?' ('+lines.length+')':'')}
+  const inCart=id=>lines.filter(l=>l.id===id).reduce((s,l)=>s+(l.qty||1),0);
+  function _lines(){
+    const el=$('pu-lines');if(!el)return;
+    el.innerHTML=lines.length?lines.map((l,i)=>`<div class="pu-line"><span class="pu-i">#${l.id}</span><span class="pu-t">${E(l.title||'')}</span><span class="pu-s">${E(l.sku||'')}</span><span class="pu-q"><input type="number" min="1" value="${l.qty||1}" data-q="${i}"> x ${money(l.price)}</span><button type="button" class="pk-del" data-r="${i}" title="Remove">✕</button></div>`).join('')+`<div class="pu-tot">Total ${money(tot(lines))}</div>`:'<div class="pu-none">No items yet. Open a listing, press Pickup and add it. You can browse several listings.</div>';
+  }
+  function open(){
+    if(!Vnd.on())return;
+    const it=Det.current(),cur=(it&&it.status!=='ended'&&!it.oos)?it:null;
+    const old=$('pumod');if(old)old.remove();
+    const t1=cur?Sx.toks(cur.sku):[],g=t1.length===1?t1[0]:'';
+    const m=document.createElement('div');m.id='pumod';
+    m.innerHTML=`<div class="pu-box">
+      <div class="pkf-h"><span>🛍 Pickup order</span><button type="button" class="pkf-x" id="pu-x">✕</button></div>
+      <div class="pu-sec">Customer information</div>
+      <div class="pkf-row">
+        <div class="pkf-f"><label>Name</label><input id="pu-n" type="text" autocomplete="off" value="${E(cust.name)}"></div>
+        <div class="pkf-f"><label>Business name</label><input id="pu-c" type="text" autocomplete="off" value="${E(cust.company)}"></div>
+        <div class="pkf-f"><label>Phone number</label><input id="pu-p" type="tel" autocomplete="off" value="${E(cust.phone)}"></div>
+        <div class="pkf-f"><label>Email</label><input id="pu-e" type="email" autocomplete="off" value="${E(cust.email)}"></div>
+      </div>
+      ${cur?`<div class="pu-sec">Add this listing: #${cur.id} ${E(cur.title||'')}</div>
+      <div class="pkf-row">
+        <div class="pkf-f"><label>Stock number *</label><input id="pu-sku" class="pkf-req" type="text" autocomplete="off" placeholder="${E(g||'click and type (double-click = No Stock)')}" data-g="${E(g)}"></div>
+        <div class="pkf-f"><label>Quantity (${cur.stock||0} in stock)</label><input id="pu-qty" type="number" min="1" placeholder="1"></div>
+        <div class="pkf-f"><label>Price</label><input id="pu-price" type="number" min="0" step="0.01" value="${(cur.price||0).toFixed(2)}"></div>
+        <div class="pkf-f" style="flex:none;align-self:flex-end"><button type="button" class="pill on" id="pu-add" style="height:38px;padding:0 16px">＋ Add to pickup</button></div>
+      </div>`:'<div class="pkf-hint">To add an item, open its listing and press Pickup. Ended or out of stock listings cannot be added.</div>'}
+      <div class="pu-sec">Pickup items</div><div id="pu-lines"></div>
+      <div class="pkf-b"><button type="button" class="pill on" id="pu-print">🖨 Print receipt &amp; complete pickup</button><button type="button" class="pill" id="pu-more">＋ Browse more listings</button><button type="button" class="pill" id="pu-clr">🗑 Clear pickup</button></div>
+      <div class="pu-foot">Once the receipt is printed, the items are passed to the top of the Packages list (highlighted as PKP pickup entries, no size or weight) and their quantities and stock numbers are adjusted automatically. The receipt includes the customer information, purchase order number, item ids and stock numbers. Browse other listings and press Pickup again to add more items; Clear removes the whole pickup without changing any listing.</div>
+    </div>`;
+    document.body.appendChild(m);_lines();badge();
+    const close=()=>m.remove();
+    $('pu-x').onclick=close;$('pu-more').onclick=close;
+    m.addEventListener('keydown',e=>{if(e.key==='Escape')close()});
+    m.addEventListener('click',e=>{if(e.target===m)close()});
+    [['pu-n','name'],['pu-c','company'],['pu-p','phone'],['pu-e','email']].forEach(([id,k])=>$(id).addEventListener('input',e=>{cust[k]=e.target.value;save()}));
+    if(cur){
+      const sk=$('pu-sku');
+      const mark=()=>sk.classList.toggle('ok',!!sk.value.trim());
+      const touch=()=>{if(!sk.value.trim()&&sk.dataset.g)sk.value=sk.dataset.g;mark()};
+      sk.addEventListener('focus',touch);sk.addEventListener('click',touch);sk.addEventListener('input',mark);
+      sk.addEventListener('dblclick',()=>{sk.value='No Stock';mark()});
+      $('pu-add').onclick=()=>{
+        let sku=sk.value.trim();if(!sku){Toast('Stock number required (double-click the field for No Stock)');sk.focus();return}
+        if(isNoStock(sku))sku='No Stock';
+        const q=Math.max(1,parseInt($('pu-qty').value)||1),pr=parseFloat($('pu-price').value);
+        if(!isFinite(pr)||pr<0){Toast('Enter a price');return}
+        if(q+inCart(cur.id)>(cur.stock||0)){Toast('Only '+(cur.stock||0)+' in stock (already '+inCart(cur.id)+' in this pickup)');return}
+        lines.push({id:cur.id,title:cur.title||'',sku,qty:q,price:pr});save();_lines();badge();
+        sk.value='';sk.classList.remove('ok');$('pu-qty').value='';Toast('Added to pickup ('+lines.length+')');
+      };
+    }
+    $('pu-lines').addEventListener('click',e=>{const r=e.target.closest('[data-r]');if(r){lines.splice(+r.dataset.r,1);save();_lines();badge()}});
+    $('pu-lines').addEventListener('change',e=>{const q=e.target.closest('[data-q]');if(q){const l=lines[+q.dataset.q];const n=parseInt(q.value);l.qty=n>=1?n:1;save();_lines()}});
+    $('pu-clr').onclick=()=>{if(!lines.length&&!Object.values(cust).some(Boolean)){Toast('Pickup is already empty');return}if(!confirm('Clear the whole pickup (items and customer information)? Listings are not changed.'))return;clear();open()};
+    $('pu-print').onclick=complete;
+  }
+  function clear(){lines=[];cust={name:'',company:'',phone:'',email:''};save();badge()}
+  function _receiptHtml(done,order,ts){
+    const st=Pay.store(),d=new Date(ts),c=cust;
+    const cl=[['Name',c.name],['Business',c.company],['Phone',c.phone],['Email',c.email]].filter(r=>String(r[1]||'').trim());
+    return`<!DOCTYPE html><html><head><title>Pickup receipt PO ${order}</title><style>body{font-family:Arial,sans-serif;font-size:11pt;margin:20px;color:#111}h1{font-size:17pt;margin:0 0 3px}.m{color:#555;font-size:10pt;margin:1px 0}.r{float:right;text-align:right;font-size:10.5pt}table{width:100%;border-collapse:collapse;margin-top:14px;clear:both}th,td{border:1px solid #bbb;padding:5px 7px;text-align:left;vertical-align:top;font-size:10.5pt}th{background:#eee}.n{text-align:right;white-space:nowrap}.c{margin-top:12px;border:1px solid #bbb;padding:8px 10px;font-size:10.5pt}.c b{display:inline-block;min-width:70px}.t{margin-top:10px;text-align:right;font-size:13pt;font-weight:bold}.sig{margin-top:34px;font-size:10pt;color:#555}@media print{body{margin:8mm}}</style></head><body>
+<div class="r"><b>PICKUP RECEIPT</b><br>Purchase order <b>${order}</b><br>${E(d.toLocaleDateString())} ${E(d.toLocaleTimeString())}</div>
+<h1>${E(st.name)}</h1>${st.phone?`<div class="m">${E(st.phone)}</div>`:''}${st.addr?`<div class="m">${E(st.addr)}</div>`:''}
+<div class="c"><div style="font-size:9pt;color:#777;margin-bottom:4px">CUSTOMER</div>${cl.length?cl.map(r=>`<div><b>${r[0]}:</b> ${E(r[1])}</div>`).join(''):'<i>no customer information entered</i>'}</div>
+<table><thead><tr><th class="n">Qty</th><th>ID</th><th>Stock #</th><th>Title</th><th class="n">Price</th></tr></thead><tbody>${done.map(l=>`<tr><td class="n">${l.qty||1}</td><td>#${l.id}</td><td>${E(l.sku||'')}</td><td>${E(l.title||'')}</td><td class="n">${money((+l.price||0)*(l.qty||1))}</td></tr>`).join('')}</tbody></table>
+<div class="t">Total ${money(tot(done))}</div><div class="sig">Picked up by: ____________________________ &nbsp; Date: ______________</div>
+<script>window.onload=function(){window.print()}<\/script></body></html>`;
+  }
+  async function complete(){
+    if(!lines.length){Toast('Add at least one item');return}
+    if(!Object.values(cust).some(v=>String(v).trim())&&!confirm('No customer information entered. Print the receipt anyway?'))return;
+    if(!confirm('Print the receipt and complete this pickup?\nQuantities and stock numbers are adjusted and the items are added to the Packages list with initials PKP.'))return;
+    const w=window.open('','_blank','width=850,height=760');     // opened inside the click so the browser allows it
+    if(!w){Toast('Allow pop-ups to print the receipt');return}
+    w.document.write('<p style="font-family:Arial;padding:20px">Preparing receipt…</p>');
+    const b=$('pu-print');if(b)b.disabled=true;
+    await Pk.load();const order=await Sx.nextOrder(),ts=Date.now();
+    const buyer={name:cust.name.trim(),company:cust.company.trim(),phone:cust.phone.trim(),email:cust.email.trim()},hasB=Object.values(buyer).some(Boolean);
+    const done=[],fail=[];
+    for(const l of lines){
+      const it=DS.get(l.id);if(!it||it.status==='ended'){fail.push(l);continue}
+      const r=await Sx.sell(l.id,{qty:l.qty||1,skus:isNoStock(l.sku)?'':l.sku,price:l.price,ts,src:'pickup',order,buyer:hasB?buyer:null});
+      if(!r){fail.push(l);continue}
+      await Pk._add({order,itemId:l.id,title:l.title,sku:l.sku,weight:'',dims:'',init:'PKP',qty:l.qty||1,price:+l.price||0,ts,buyer:hasB?{...buyer}:null,pickup:true,
+        ship:0,saleId:(r.item.sales&&r.item.sales.length?r.item.sales[r.item.sales.length-1].id:undefined),log:{packaged:true,weight:false,size:false,sku:r.fl.sku,qty:true,price:true,ship:false,status:r.fl.status}});
+      done.push(l);
+    }
+    if(!done.length){try{w.close()}catch(e){}if(b)b.disabled=false;Toast('Nothing could be completed');return}
+    w.document.open();w.document.write(_receiptHtml(done,order,ts));w.document.close();
+    lines=fail;if(!fail.length)cust={name:'',company:'',phone:'',email:''};save();badge();
+    $('pumod')?.remove();
+    Toast('Pickup complete, PO '+order+' · '+done.length+' item'+(done.length>1?'s':'')+' added to Packages (PKP)'+(fail.length?' · '+fail.length+' could not be completed and stay in the pickup':''),6000);
+    try{Det.refresh()}catch(e){}
+    if($('pkmod')?.classList.contains('on')){try{Pk.refresh()}catch(e){}}
+  }
+  return{open,clear,badge,complete};
+})();
+
+</script>
+<script>
+'use strict';
+/* ═══ BASKET — #bklist pattern §10 (qty steppers · totals · PayPal cart §10 modal.paypal) ═══ */
+const Basket=(()=>{
+  let L=LS.load(LS.KB)||{};
+  if(typeof L!=='object'||Array.isArray(L))L={};
+  const save=()=>LS.save(LS.KB,L);
+  function lines(){return Object.entries(L).map(([id,qty])=>({i:get(id),qty})).filter(x=>x.i&&x.i.status!=='ended')}
+  const count=()=>lines().reduce((s,x)=>s+x.qty,0);
+  function add(id){const i=get(id);if(!i)return;L[id]=(L[id]||0)+1;save();render();Toast('Added to basket — '+(i.sku||i.title))}
+  function setQty(id,v){v=Math.max(0,Math.min(99,parseInt(v,10)||0));if(!v)delete L[id];else L[id]=v;save();render()}
+  function dec(id){setQty(id,(L[id]||1)-1)}
+  function inc(id){setQty(id,(L[id]||0)+1)}
+  function rm(id){delete L[id];save();render()}
+  function clear(){L={};save();render()}
+  function render(){
+    const ls=lines(),n=ls.reduce((s,x)=>s+x.qty,0),b=$('baskn');
+    b.textContent=n>0?n:'';
+    $('bk-count').textContent=n;
+    const el=$('bklist');
+    if(!ls.length)el.innerHTML='<div class="bkempty">Basket is empty — open a listing and add it.</div>';
+    else el.innerHTML=ls.map(({i,qty})=>{
+      const line=(i.price||0)*qty;
+      return `<div class="bkrow">
+        <div class="bkinfo"><div class="bkt">${E(i.title)}</div>
+        <div class="bks">${E(i.sku||'')}${(i.shipping||0)>0?' · +'+money(i.shipping)+' ship each':''}</div></div>
+        <div class="bkqty">
+          <button class="bkqb" onclick="Basket.dec(${i.id})" aria-label="less">−</button>
+          <input class="bkq" type="text" inputmode="numeric" value="${qty}" oninput="Basket.setQty(${i.id},this.value)" aria-label="qty">
+          <button class="bkqb" onclick="Basket.inc(${i.id})" aria-label="more">+</button>
+        </div>
+        <div class="bkp">${money(line)}</div>
+        <button class="bkrm" onclick="Basket.rm(${i.id})" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+      </div>`}).join('');
+    const sub=ls.reduce((s,x)=>s+(x.i.price||0)*x.qty,0);
+    const ship=ls.reduce((s,x)=>s+(x.i.shipping||0)*x.qty,0);
+    $('bk-sub').textContent=money(sub);
+    $('bk-ship').textContent=money(ship);
+    $('bk-tot').textContent=money(sub+ship);
+  }
+  let _skipPop=false;
+  const isOpen=()=>$('bkmod').classList.contains('onm');
+  function open(){render();if(isOpen())return;$('bkmod').classList.add('onm');
+    try{history.pushState(Object.assign({},history.state||{},{bk:1}),'')}catch(e){}} /* Back closes the basket */
+  function close(fromPop){if(!isOpen())return;$('bkmod').classList.remove('onm');
+    if(fromPop!==true&&history.state&&history.state.bk){_skipPop=true;try{history.back()}catch(e){_skipPop=false}}}
+  function popGuard(){if(_skipPop){_skipPop=false;return true}if(isOpen()){close(true);return true}return false}
+  function checkout(){
+    const ls=lines();
+    if(!ls.length){Toast('Basket is empty');return}
+    if(!CFG.PP_EMAIL){Toast('No PayPal address — set it in Business Info (vendor mode)',3600);return}
+    const f=$('ppform');f.innerHTML='';
+    const add=(k,v)=>{const h=document.createElement('input');h.type='hidden';h.name=k;h.value=v;f.appendChild(h)};
+    add('cmd','_cart');add('upload','1');add('business',CFG.PP_EMAIL);add('currency_code',CFG.PP_CUR);
+    ls.forEach((x,n)=>{const m=n+1;
+      add('item_name_'+m,x.i.title);add('item_number_'+m,x.i.sku||x.i.id);
+      add('amount_'+m,(x.i.price||0).toFixed(2));add('quantity_'+m,x.qty);
+      add('shipping_'+m,(x.i.shipping||0).toFixed(2))});
+    Toast('Opening PayPal checkout…');
+    setTimeout(()=>f.submit(),60);
+  }
+  return{add,dec,inc,setQty,rm,clear,render,open,close,isOpen,popGuard,checkout};
+})();
+
+/* vendbar visibility: always on in vendor mode; customers see it only while a listing is open (back button) */
+function barSync(){
+  const det=$('view-detail').classList.contains('on');
+  const bar=$('vendbar');if(bar)bar.classList.toggle('on',Vnd.on()||det);
+  const bb=$('vbback');if(bb)bb.style.display=det?'inline-flex':'none';
+}
+/* ═══ VENDOR — passcode gate §10 modal.vendor-auth · PIN = CFG.PASS §29 or changed via Business Info ═══ */
+const Vnd={
+  on(){try{return sessionStorage.getItem('bs_vend')==='1'}catch{return false}},
+  gate(){$('vmod').classList.add('onm');setTimeout(()=>{if($('vmod').classList.contains('onm')&&!$('vmod').contains(document.activeElement))$('vpin').focus()},40)},
+  closeGate(){$('vmod').classList.remove('onm');$('vpin').value=''},
+  async checkPw(pin){ /* honors a password changed in Business Info (salted hash in latest.b64) */
+    pin=String(pin==null?'':pin);
+    if(CFG.PASS_HASH)return (await hashPw(pin,CFG.PASS_SALT||''))===CFG.PASS_HASH;
+    return pin===CFG.PASS;
+  },
+  async login(){
+    if(await this.checkPw($('vpin').value)){
+      try{sessionStorage.setItem('bs_vend','1')}catch(e){}
+      this.closeGate();this.apply();Browse.render();Toast('Vendor mode on — you see ended & out-of-stock too');
+    }else{Toast('Wrong PIN');$('vpin').value='';$('vpin').focus()}
+  },
+  logout(){try{sessionStorage.removeItem('bs_vend')}catch(e){}this.apply();Browse.render();Toast('Vendor mode off')},
+  apply(){
+    document.body.classList.toggle('vend',this.on());
+    barSync(); /* bar on for vendor mode AND for customers while a listing is open */
+    try{RefreshGuard.sync()}catch(e){} /* guard armed only while vendor + B64 linked (configs §20) */
+    try{DB.foot()}catch(e){}
+    const cid=Det.cur();
+    this.detBar(cid?get(cid):null);
+  },
+  detBar(i){ /* detail-context buttons — same bar as New/Export/B64, cleared when no listing is open */
+    const el=$('vbdet');if(!el)return;
+    if(!this.on()||!i){el.innerHTML='';return}
+    const ended=i.status==='ended';
+    el.innerHTML=
+      `<button class="vb am" onclick="Ed.open(${i.id})" title="Edit this listing"><i class="fa-solid fa-pen-to-square"></i> Edit</button>`+
+      (ended?'':`<button class="vb" onclick="Sx.markPendingUI(${i.id})" title="Pending sold (expires after 14 days)"><i class="fa-solid fa-hourglass-half"></i> Pending Sold</button>`)+
+      (ended?'':`<button class="vb gn" onclick="Det.markSold()" title="Record a sale: lowers quantity, removes the stock number"><i class="fa-solid fa-dollar-sign"></i> Mark Sold</button>`)+
+      (ended?'':`<button class="vb" onclick="Pk.packaged()" title="Package this item (weight, size, stock number, price, shipping)"><i class="fa-solid fa-box"></i> Packaged</button>`)+
+      (ended?'':`<button class="vb" onclick="Sx.stockUI(${i.id})" title="Adjust quantity and stock numbers"><i class="fa-solid fa-boxes-stacked"></i> Stock</button>`)+
+      (ended?'':`<button class="vb" onclick="Sx.locUI(${i.id})" title="Adjust bin location"><i class="fa-solid fa-location-dot"></i> Loc</button>`)+
+      (ended?'':`<button class="vb" id="ab-pu" onclick="Pu.open()" title="Pickup order: customer picks items up in person"><i class="fa-solid fa-store"></i> Pickup</button>`)+
+      (ended?'':`<button class="vb" onclick="Det.endIt()" title="End this listing"><i class="fa-solid fa-circle-stop"></i> End</button>`)+
+      `<button class="vb rd" onclick="Det.delIt()" title="Delete this listing"><i class="fa-solid fa-trash-can"></i> Delete</button>`;
+    try{Pu.badge()}catch(e){}
+  },
+  exportJSON(){
+    const blob=new Blob([JSON.stringify(ITEMS,null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=slug+'_export_'+Date.now()+'.json';a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),500);
+    Toast('Exported '+ITEMS.length+' listings');
+  }
+};
+
+/* ═══ BUSINESS INFO — store identity persisted to latest.b64 (storefront Pay.store() pattern) ═══
+   The header title, window title, OG tags, JSON-LD and the vendbar back button all follow the
+   business name; the PayPal address feeds checkout; the vendor password is stored as a salted
+   hash (same scheme as the old storefront's export password). Without a linked folder the info
+   is cached in localStorage and written to latest.b64 the moment B64 is linked. */
+const Biz=(()=>{
+  const LSK='bs_biz_v1';
+  const DEF={name:STORE_NAME,pp:PAYPAL_EMAIL,phone:'',addr:'',hours:'',spec:'',policy:'',
+    returns:CFG.RETURNS,handling:CFG.HANDLING,svc:CFG.SVC,eta:CFG.ETA,passHash:'',passSalt:''};
+  let D=Object.assign({},DEF);
+  try{const s=LS.load(LSK);if(s&&typeof s==='object')D=Object.assign({},DEF,s)}catch(e){}
+  const slugOf=n=>String(n||'').toLowerCase().replace(/[^a-z0-9]+/g,'')||'store';
+  function manifestData(){
+    return{name:D.name||STORE_NAME,pp:D.pp||'',phone:D.phone||'',addr:D.addr||'',hours:D.hours||'',
+      spec:D.spec||'',policy:D.policy||'',returns:D.returns||DEF.returns,handling:D.handling||DEF.handling,
+      svc:D.svc||DEF.svc,eta:D.eta||DEF.eta,passHash:D.passHash||'',passSalt:D.passSalt||''};
+  }
+  function paint(){ /* push the business name everywhere it is displayed */
+    const nm=D.name||STORE_NAME;slug=slugOf(nm);
+    const detOn=$('view-detail').classList.contains('on');
+    if(!detOn){
+      document.title=winTitle();
+      const t=document.getElementsByTagName('title')[0];if(t)t.textContent=nm+' — storefront';
+      const og=$('og-t');if(og)og.setAttribute('content',nm+' — storefront');
+    }
+    const tt=$('tt');if(tt)tt.innerHTML=`${E(nm)} — storefront <span id="tt-vend">/ vendor</span>`;
+    const bn=$('vbbn');if(bn)bn.textContent=slug;
+    const lg=document.querySelector('.mw-logo');if(lg)lg.title=nm+' home — back to the main page, clears search, brand and sort';
+    const mw=document.querySelector('.mockwin');if(mw)mw.setAttribute('aria-label',nm+' storefront');
+    try{const ld=$('ld-store');if(ld){const o=JSON.parse(ld.textContent||'{}');o.name=nm;ld.textContent=JSON.stringify(o)}}catch(e){}
+    if(detOn){const i=Det.cur()&&get(Det.cur());if(i)Det.show(i,false)} /* detail partline picks up new returns/handling/service */
+  }
+  function apply(){ /* D → CFG + localStorage cache + paint */
+    CFG.NAME=D.name||STORE_NAME;CFG.PP_EMAIL=D.pp||'';CFG.PHONE=D.phone||'';CFG.ADDRESS=D.addr||'';CFG.STORE_POLICY=D.policy||'';
+    CFG.RETURNS=D.returns||DEF.returns;CFG.HANDLING=D.handling||DEF.handling;
+    CFG.SVC=D.svc||DEF.svc;CFG.ETA=D.eta||DEF.eta;
+    CFG.PASS_HASH=D.passHash||'';CFG.PASS_SALT=D.passSalt||'';
+    try{localStorage.setItem(LSK,JSON.stringify(D))}catch(e){}
+    paint();
+  }
+  function open(){
+    if(!Vnd.on())return;
+    $('bi-name').value=D.name||'';$('bi-pp').value=D.pp||'';
+    $('bi-phone').value=D.phone||'';$('bi-addr').value=D.addr||'';
+    $('bi-hours').value=D.hours||'';$('bi-spec').value=D.spec||'';$('bi-policy').value=D.policy||'';
+    $('bi-returns').value=D.returns||DEF.returns;$('bi-handling').value=D.handling||DEF.handling;
+    $('bi-svc').value=D.svc||DEF.svc;$('bi-eta').value=D.eta||DEF.eta;
+    $('bi-pw1').value='';$('bi-pw2').value='';
+    $('bimod').classList.add('onm');setTimeout(()=>{if($('bimod').classList.contains('onm')&&!$('bimod').contains(document.activeElement))$('bi-name').focus()},40);
+  }
+  function close(){$('bimod').classList.remove('onm')}
+  async function save(){
+    const name=$('bi-name').value.trim();
+    if(!name){Toast('Business name is required');$('bi-name').focus();return}
+    const pp=$('bi-pp').value.trim();
+    if(pp&&!/^\S+@\S+\.\S+$/.test(pp)){Toast('Enter a valid PayPal email');$('bi-pp').focus();return}
+    const p1=$('bi-pw1').value,p2=$('bi-pw2').value;
+    if(p1||p2){
+      if(p1!==p2){Toast('New passwords do not match');$('bi-pw2').value='';$('bi-pw2').focus();return}
+      if(p1.length<4){Toast('Password must be at least 4 characters');$('bi-pw1').focus();return}
+    }
+    D.name=name;D.pp=pp;
+    D.phone=$('bi-phone').value.trim();D.addr=$('bi-addr').value.trim();
+    D.hours=$('bi-hours').value.trim();D.spec=$('bi-spec').value.trim();D.policy=$('bi-policy').value.trim();
+    D.returns=$('bi-returns').value.trim()||DEF.returns;D.handling=$('bi-handling').value.trim()||DEF.handling;
+    D.svc=$('bi-svc').value.trim()||DEF.svc;D.eta=$('bi-eta').value.trim()||DEF.eta;
+    let pwMsg='';
+    if(p1){ /* salted hash only — the PIN itself never goes to disk */
+      let salt='';try{salt=[...crypto.getRandomValues(new Uint8Array(8))].map(b=>b.toString(16).padStart(2,'0')).join('')}catch(e){salt=Math.random().toString(16).slice(2,18)}
+      D.passSalt=salt;D.passHash=await hashPw(p1,salt);pwMsg=' · vendor password updated';
+    }
+    close();apply();
+    if(DB._hasDir()){ /* disk truth — rewrite latest.b64 right away */
+      const kb=await DB.genManifest();
+      Toast(kb?'Business info saved — latest.b64 ('+kb+'KB)'+pwMsg
+              :'Business info saved locally — latest.b64 write failed'+pwMsg,kb?3200:4600);
+    }else Toast('Business info saved locally'+pwMsg+' — link B64 to store it in latest.b64',4600);
+  }
+  function fromManifest(m){ /* disk truth on scan — biz block first, legacy store/paypal fallback */
+    if(!m)return;
+    if(m.biz&&typeof m.biz==='object'){
+      const b=m.biz;
+      D.name=b.name||m.store||D.name||STORE_NAME;
+      D.pp=b.pp!=null?b.pp:(m.paypal||D.pp||'');
+      D.phone=b.phone||'';D.addr=b.addr||'';D.hours=b.hours||'';D.spec=b.spec||'';D.policy=b.policy||'';
+      D.returns=b.returns||DEF.returns;D.handling=b.handling||DEF.handling;
+      D.svc=b.svc||DEF.svc;D.eta=b.eta||DEF.eta;
+      if('passHash' in b){D.passHash=b.passHash||'';D.passSalt=b.passSalt||''}
+    }else{
+      if(m.store)D.name=m.store;
+      if(m.paypal)D.pp=m.paypal;
+      if(m.phone)D.phone=m.phone; /* storefront-built manifests carry these on items — synthesized passthrough */
+      if(m.addr)D.addr=m.addr;
+    }
+    apply();
+  }
+  return{open,close,save,apply,paint,fromManifest,manifestData,name:()=>D.name||STORE_NAME};
+})();
+
+/* ═══ EDITOR — basic subset of configs §12 (webp pipeline: 1200×800@.68 + 240×160@.55) ═══
+   When run locally (file://), the B64 working folder must be linked before New/Edit — DB.ensure()
+   relinks the remembered folder on one click, exactly like the old storefront (DB.ensure gate). */
+const Ed={
+  id:null,_img:null,_cleared:false,
+  async open(id){
+    if(!await DB.ensure())return;
+    if(id&&Static.on()&&Static.need(id)){try{await Static.fetchItem(id)}catch(e){}} /* /src photo for the preview */
+    this.id=id||null;this._img=null;this._cleared=false;
+    $('f-icon').innerHTML=ICONS.map(ic=>`<option value="${ic}">${ic.replace('fa-','')}</option>`).join('');
+    const i=id?get(id):null;
+    $('edtitle').innerHTML=i?'<b>edit</b> listing':'<b>new</b> listing';
+    $('f-title').value=i?i.title||'':'';$('f-price').value=i&&i.price!=null?i.price:'';
+    $('f-stock').value=i&&i.stock!=null?i.stock:'';$('f-sku').value=i?i.sku||'':'';
+    $('f-cat').value=i?i.category||'':'';$('f-part').value=i?i.partNum||'':'';
+    $('f-loc').value=i?i.loc||'':'';$('f-int').value=i?i.interchange||'':'';
+    $('f-brand').value=i?i.brand||'':'';$('f-cond').value=(i&&i.condition)||'new';
+    $('f-ship').value=i&&i.shipping!=null?i.shipping:'';
+    $('f-wt').value=i?i.weight||'':'';$('f-dim').value=i?i.dims||'':'';$('f-init').value=i?i.initials||'':'';
+    $('f-icon').value=(i&&i.icon)||'fa-cube';
+    if(!ICONS.includes($('f-icon').value))$('f-icon').value='fa-cube';
+    $('f-desc').value=i?i.shortDesc||'':'';$('f-oos').checked=!!(i&&i.oos);
+    const prev=i&&i.thumbs&&i.thumbs[0]?i.thumbs[0]:null;
+    this._setPrev(prev,!!prev);
+    $('emod').classList.add('onm');setTimeout(()=>{if($('emod').classList.contains('onm')&&!$('emod').contains(document.activeElement))$('f-title').focus()},40);
+  },
+  _setPrev(src,has){
+    const p=$('f-prev'),x=$('f-imgx');
+    if(src&&has){p.src=src;p.classList.add('has');x.style.display='inline-flex'}
+    else{p.classList.remove('has');p.removeAttribute('src');x.style.display='none'}
+  },
+  clearImg(){this._img=null;this._cleared=true;$('f-img').value='';this._setPrev(null,false)},
+  close(){$('emod').classList.remove('onm')},
+  _draw(im,w,h,q){
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const x=c.getContext('2d');x.fillStyle='#ffffff';x.fillRect(0,0,w,h);
+    const s=Math.min(w/im.width,h/im.height),dw=Math.max(1,im.width*s),dh=Math.max(1,im.height*s);
+    x.drawImage(im,(w-dw)/2,(h-dh)/2,dw,dh);
+    let u;try{u=c.toDataURL('image/webp',q);if(!u.startsWith('data:image/webp'))u=c.toDataURL('image/png')}catch(e){u=c.toDataURL('image/png')}
+    return u;
+  },
+  pick(f){
+    if(!f||!/^image\//.test(f.type||''))return;
+    const r=new FileReader();
+    r.onload=()=>{const im=new Image();
+      im.onload=()=>{this._img={img:this._draw(im,CFG.IW,CFG.IH,CFG.IQ),th:this._draw(im,CFG.TW,CFG.TH,CFG.TQ)};
+        this._cleared=false;this._setPrev(this._img.th,true)};
+      im.onerror=()=>Toast('Could not read that image');
+      im.src=r.result};
+    r.readAsDataURL(f);
+  },
+  async save(){
+    if(!FS.ok()||!DB._hasDir()||!(await DB.ready())){Toast('Link the B64 /src folder (File System API) to save listings',4600);try{liveBadge()}catch(e){}return}
+    const title=$('f-title').value.trim(),price=parseFloat($('f-price').value);
+    if(!title){Toast('Title is required');$('f-title').focus();return}
+    if(!(price>=0)){Toast('Price is required');$('f-price').focus();return}
+    let dimv=$('f-dim').value.trim();
+    if(dimv){const m=dimv.match(/^(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)$/);if(!m){Toast('Size should look like 16x12x8');$('f-dim').focus();return}dimv=m[1]+'x'+m[2]+'x'+m[3]}
+    const now=Date.now(),old=this.id?get(this.id):null;
+    const bak=old?JSON.parse(JSON.stringify(old)):null; /* rollback copy — nothing stays in the store unless it reached the disk */
+    const it=old||{id:nid(),created:now,status:'active',soldQty:0,images:[],thumbs:[]};
+    it.title=title;it.price=price;
+    it.stock=Math.max(0,parseInt($('f-stock').value,10)||0);
+    it.sku=$('f-sku').value.trim();it.category=$('f-cat').value.trim();
+    it.partNum=$('f-part').value.trim();it.loc=$('f-loc').value.trim();
+    it.interchange=$('f-int').value.trim();it.brand=$('f-brand').value.trim();
+    it.condition=$('f-cond').value;it.shipping=parseFloat($('f-ship').value)||0;
+    it.weight=$('f-wt').value.trim();it.dims=dimv;it.initials=$('f-init').value.replace(/[^a-zA-Z]/g,'').toUpperCase().slice(0,2);
+    if(it.stock>0&&!$('f-oos').checked)it.oos=false;
+    it.icon=$('f-icon').value||'fa-cube';it.shortDesc=$('f-desc').value.trim();
+    it.oos=$('f-oos').checked;it.updated=now;
+    if(this._img){it.images=[this._img.img];it.thumbs=[this._img.th]}
+    else if(this._cleared){it.images=[];it.thumbs=[]}
+    const linked=DB._hasDir();
+    if(linked){ /* disk truth: fresh id counts the folder too · conflict check before committing */
+      if(!old)it.id=await DB.freshId();
+      else{const c=await DB.conflict(it.id,DB.ver(old));if(c){DB.conflictMsg(it.id,c);return}}
+    }
+    if(!old)ITEMS.push(it);
+    else{const x=ITEMS.findIndex(z=>z.id===it.id);if(x>-1)ITEMS[x]=it}
+    await saveItems();this.close();
+    if(linked){ /* packet write + read-back verify + latest.b64 autosave (storefront.txt DB.write) */
+      const fn=await DB.write(it,'active');
+      if(fn){await DB.autoSave();Toast((old?'Listing saved':'Listing created')+' — '+fn)}
+      else{ /* disk write failed → undo the in-memory change too */
+        if(bak){const x=ITEMS.findIndex(z=>z.id===bak.id);if(x>-1)ITEMS[x]=bak}else ITEMS=ITEMS.filter(z=>z.id!==it.id);
+        await saveItems();Toast('NOT saved to folder — re-link B64 and press Save again',4200)}
+    }
+    chrome();Browse.render();
+  }
+};
+
+/* ═══ B64 DATABASE — ported from storefront.txt (FS · Pkt · Reg · DB) per configs §12 db.* ═══
+   Disk is the source of truth: every listing lives as {id}_{title}.b64 (base64 JSON packet,
+   payload {v:9,ts,store,status,id,item,files}) + latest.b64 manifest rewritten on every change.
+   The folder handle is remembered in IndexedDB → session persists across reloads; the B64
+   button relinks on click with a single permission prompt (no re-picking the folder). */
+const FS={
+  ok(){return location.protocol==='file:'&&!!window.showDirectoryPicker},
+  guard(){if(this.ok())return true;Toast('File System API Required. Run Locally.',5000);return false}
+};
+/* packet codec — same on-disk format as the old storefront */
+const Pkt={
+  fn(title,id){const safe=(title||'item').replace(/[^a-zA-Z0-9_\-]/g,'_').slice(0,9).replace(/_+$/,'')||'item';return(id!=null?String(id)+'_':'')+safe+'.b64'},
+  enc(p){const j=JSON.stringify(p);try{return btoa(unescape(encodeURIComponent(j)))}catch{return btoa(j)}},
+  dec(s){try{let j;try{j=decodeURIComponent(escape(atob(s.trim())))}catch{j=atob(s.trim())}return JSON.parse(j)}catch{return null}}
+};
+/* file registry — known .b64 filenames on disk */
+const Reg=(()=>{
+  let known=new Set();
+  return{add(fn){known.add(fn)},addAll(l){(l||[]).forEach(f=>known.add(f))},rm(fn){known.delete(fn)},list(){return[...known].sort()},clear(){known=new Set()}};
+})();
+/* ═══ STATIC LOADER — ported from storefront.txt (configs §21 data.static.*) ═══
+   On a statically deployed website (http/https) the B64 working folder can NOT be
+   linked (File System Access API requires file://), so the catalog is fetched
+   READ-ONLY from the /src folder on the web server instead:
+     1. <site>/src/latest.b64      — manifest: metadata-only items (no photos) + biz block
+                                     + the list of packet filenames → Reg
+     2. <site>/src/{id}_{title}.b64 — per-item packets, fetched ON DEMAND to hydrate
+                                     photos (lazy: card thumbnails, detail view, editor)
+   Item merge is newest-version-wins (same ver rules as DB.scan); ids the deployed
+   manifest no longer contains are dropped, so redeploys fully refresh the catalog.
+   Local file:// runs ignore this module entirely (FS + DB.scan remain the truth). */
+const Static=(()=>{
+  const MARK='bs_src_v1'; /* localStorage flag+ts: LS cache is a /src mirror (seed is not) */
+  let ok=false,base='';
+  const _ver=i=>Math.max(i&&i.updated||0,i&&i.created||0,i&&i.ended||0); /* same as DB.ver */
+  const _log=m=>{try{console.log('[B64] '+new Date().toLocaleTimeString()+' '+m)}catch(e){}};
+  function init(){ /* activate only on a real web host — file:// uses the DB folder */
+    if(location.protocol.indexOf('http')===0){
+      base=location.href.replace(/[?#].*/,'').replace(/\/[^/]*$/,'')+'/'+CFG.SRC;ok=true;
+    }
+  }
+  function on(){return ok}
+  async function loadAll(){ /* manifest import — runs once at boot, before first render */
+    if(!ok)return false;
+    let trusted=false;try{trusted=+localStorage.getItem(MARK)>0}catch(e){}
+    const pre=ITEMS; /* remembered so a broken deploy can fall back to cache/seed */
+    if(!trusted){ITEMS=[];_log('HTTP mode — loading from /'+CFG.SRC+'/ (ignoring local cache)')}
+    else _log('HTTP mode — loading from /'+CFG.SRC+'/ (merging cached mirror)');
+    try{
+      const r=await fetch(base+'/latest.b64',{cache:'no-cache'});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const d=Pkt.dec(await r.text());
+      const man=d&&d.manifest?d.manifest:null;
+      if(!man)throw new Error('latest.b64: no manifest block');
+      if(Array.isArray(man.files))Reg.addAll(man.files);
+      purgeSeed();window._b64Loaded=true; /* /src answered — placeholder listings go */
+      const inMan=new Set();
+      Object.values(man.items||{}).forEach(o=>{
+        if(!o||o.id==null)return;inMan.add(+o.id);
+        if(o.deleted||o.status==='deleted'){ITEMS=ITEMS.filter(x=>x.id!==+o.id);return} /* tombstone */
+        const it=Object.assign({},o);delete it.deleted;
+        const x=ITEMS.findIndex(z=>z.id===it.id);
+        if(x===-1)ITEMS.push(it);
+        else if(_ver(it)>_ver(ITEMS[x]))ITEMS[x]=it; /* manifest newer → metadata first, photos hydrate lazily */
+        /* tie → keep the cached copy (it already carries hydrated photos) */
+      });
+      if(man.items&&Object.keys(man.items).length)ITEMS=ITEMS.filter(x=>inMan.has(+x.id)); /* deployed catalog is authoritative */
+      if(Array.isArray(man.files))sessionStorage.setItem('db_files',JSON.stringify(Reg.list()));
+      Biz.fromManifest(man); /* store name · PayPal · hours · password hash — header follows it live */
+      try{localStorage.setItem(MARK,String(man.ts||Date.now()))}catch(e){}
+      await saveItems(); /* mirror now matches /src (photos cached as they hydrate) */
+      _log('Done: latest.b64 · '+ITEMS.length+' listings from /'+CFG.SRC+'/');
+      if(Vnd.on())Toast('Loaded ✓ '+ITEMS.length+' listings from /'+CFG.SRC+'/',3200);
+      return true;
+    }catch(e){
+      if(!ITEMS.length)ITEMS=pre; /* /src unreachable → fall back to cache or seed */
+      _log('No latest.b64 in /'+CFG.SRC+'/ — '+(e&&e.message||e));
+      if(Vnd.on())Toast('No /'+CFG.SRC+'/latest.b64 on the server — showing cached catalog',4600);
+      return false;
+    }
+  }
+  const _hyd=new Set(); /* ids whose packet was fetched this session (no refetch loops) */
+  function need(id){ /* true = item exists but its photos still live only in /src */
+    if(!ok)return false;const it=ITEMS.find(z=>z.id===+id);
+    return!!it&&!(it.images&&it.images.length)&&!_hyd.has(+id);
+  }
+  async function fetchItem(id){ /* lazy photo hydration — one packet per listing, on demand */
+    if(!ok)return false;
+    const it=ITEMS.find(z=>z.id===+id);if(!it)return false;
+    const fn=Pkt.fn(it.title,it.id);
+    try{
+      const r=await fetch(base+'/'+fn,{cache:'no-cache'});
+      if(!r.ok)throw new Error('HTTP '+r.status);
+      const d=Pkt.dec(await r.text());
+      const w=d&&d.item&&d.item.id!=null?d.item:null;if(!w)return false;
+      const x=ITEMS.findIndex(z=>z.id===w.id);
+      if(x===-1)ITEMS.push(Object.assign({},w));
+      else if(_ver(w)>=_ver(ITEMS[x]))ITEMS[x]=Object.assign({},w); /* packet is the full version — take its photos */
+      _hyd.add(+id);await saveItems();
+      return true;
+    }catch(e){_log('fetch '+fn+': '+(e&&e.message||e));return false}
+  }
+  init();
+  return{on,loadAll,fetchItem,need,base:()=>base};
+})();
+const DB=(()=>{
+  let _dir=null,_savedName='';
+  const log=m=>{try{console.log('[B64] '+new Date().toLocaleTimeString()+' '+m)}catch(e){}};
+  const ver=i=>Math.max(i&&i.updated||0,i&&i.created||0,i&&i.ended||0);
+  function foot(){ /* B64 button state (configs §12 db.glow gn/rd) + status-bar truth */
+    try{liveBadge()}catch(e){}
+    const b=$('b64btn');
+    if(b){b.classList.toggle('gn',!!_dir);b.classList.toggle('rd',!_dir);
+      b.title=_dir?'B64 folder linked: '+_dir.name+' (click to relink)'
+        :(Static.on()?'Web mode — catalog loads read-only from /'+CFG.SRC+'/ (B64 folder linking is local-only)'
+        :(_savedName?'Reconnect '+_savedName+' — relinks on click':'Link B64 folder (required to add/edit listings)'))}
+    const f=$('ft-b64');
+    if(f&&Vnd.on())f.innerHTML=_dir?'<b>B64</b> linked: '+E(_dir.name)
+      :(Static.on()?'<b>B64</b> web — reading /'+E(CFG.SRC)+'/'
+      :(_savedName?'<b>B64</b> remembered: '+E(_savedName):'<b>B64</b> not linked — local storage'));
+  }
+  /* ── persistent folder link: handle remembered in IndexedDB 'storefront-b64' ── */
+  function _idb(){return new Promise((res,rej)=>{const r=indexedDB.open('storefront-b64',1);r.onupgradeneeded=()=>r.result.createObjectStore('h');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+  async function _hGet(){try{const d=await _idb();return await new Promise((res,rej)=>{const q=d.transaction('h').objectStore('h').get('dir');q.onsuccess=()=>res(q.result||null);q.onerror=()=>rej(q.error)})}catch{return null}}
+  async function _hSet(h){try{const d=await _idb();await new Promise((res,rej)=>{const t=d.transaction('h','readwrite');if(h)t.objectStore('h').put(h,'dir');else t.objectStore('h').delete('dir');t.oncomplete=res;t.onerror=()=>rej(t.error)})}catch(e){log('Could not remember folder: '+e.message)}}
+  /* silent=true: only re-link if permission is still granted (no prompt, works without a click) */
+  async function restore(silent){
+    if(_dir)return true;
+    if(!FS.ok())return false;
+    const h=await _hGet();if(!h){_savedName='';foot();return false}
+    _savedName=h.name||'';
+    try{
+      let p=await h.queryPermission({mode:'readwrite'});
+      if(p!=='granted'){if(silent){foot();return false}p=await h.requestPermission({mode:'readwrite'})}
+      if(p!=='granted'){foot();return false}
+      _dir=h;log('Re-linked folder: '+h.name);Toast('Linking '+h.name+'…');await scan();foot();return true;
+    }catch(e){_dir=null;log('Re-link failed: '+e.message);foot();return false}
+  }
+  /* true only if a folder is linked AND we may write to it right now */
+  async function ready(){
+    if(!_dir)return false;
+    try{let p=await _dir.queryPermission({mode:'readwrite'});if(p!=='granted')p=await _dir.requestPermission({mode:'readwrite'});return p==='granted'}catch{return false}
+  }
+  /* gate for New / Edit / Sold / End / Delete. Not on disk (http) → localStorage mode stays open. */
+  async function ensure(){
+    if(!FS.ok()){Toast('File System API required — run locally and link the B64 /src folder to edit listings',4600);try{liveBadge()}catch(e){}return false}
+    if(await ready())return true;
+    _dir=null;foot();
+    Toast('Link your B64 folder first');
+    await pick();
+    return await ready();
+  }
+  async function pick(){
+    try{
+      if(!FS.guard())return;
+      if(!_dir&&await restore(false))return; /* relink on click — one permission prompt, no re-pick */
+      _dir=await window.showDirectoryPicker({mode:'readwrite'});_savedName=_dir.name;await _hSet(_dir);log('Folder: '+_dir.name);Toast('Scanning…');await scan();foot();
+    }catch(e){if(e.name!=='AbortError'){log('Open failed: '+e.message);Toast('Error: '+e.message)}}
+  }
+  const _closeDetail=()=>{try{if($('view-detail').classList.contains('on'))Det._closeView()}catch(e){}};
+  async function scan(){ /* read every packet — newest version wins per id, ended/deleted honored */
+    if(!_dir){log('No folder open');return}
+    const files=[];for await(const[n,h]of _dir.entries())if(h.kind==='file'&&n.endsWith('.b64')&&n!=='latest.b64'&&n!=='packages.b64')files.push({n,h});
+    if(!files.length){log('No .b64 files');Toast('Folder empty — disk is source of truth');ITEMS=[];window._b64Loaded=true;await saveItems();_closeDetail();chrome();Browse.reset();foot();return}
+    const CONC=16;let done=0;
+    const map=new Map(),del=new Set();
+    async function _one({n,h}){
+      try{
+        const t=await(await h.getFile()).text();const d=Pkt.dec(t);if(!d)return;
+        if(d.status==='deleted'&&d.id!=null)del.add(+d.id);
+        else if(d.item&&d.item.id!=null){
+          const it=Object.assign({},d.item);
+          if(d.status==='ended'&&it.status!=='ended'){it.status='ended';it.ended=it.ended||d.ts||Date.now();it.updated=Math.max(it.updated||0,d.ts||0)}
+          const cur=map.get(it.id);
+          if(!cur||ver(it)>ver(cur)||(ver(it)===ver(cur)&&it.status==='ended'&&cur.status!=='ended'))map.set(it.id,it);
+        }
+        Reg.add(n);
+      }catch(e){log('Skip '+n+': '+e.message)}
+      done++;if(done%25===0||done===files.length)log('Loading… '+done+'/'+files.length);
+    }
+    for(let i=0;i<files.length;i+=CONC)await Promise.all(files.slice(i,i+CONC).map(_one));
+    del.forEach(id=>map.delete(id));
+    ITEMS=[...map.values()];window._b64Loaded=true;
+    await saveItems(); /* cache mirrors disk so the catalog survives a reload before relinking */
+    try{const fh=await _dir.getFileHandle('latest.b64');const d=Pkt.dec(await(await fh.getFile()).text());if(d&&d.manifest)Biz.fromManifest(d.manifest)}catch(e){}
+    log('Done: '+files.length+' files · '+ITEMS.length+' listings');
+    _closeDetail();chrome();Browse.reset();foot();
+    Toast('Loaded ✓ '+ITEMS.length+' listings from '+_dir.name);
+  }
+  function _hasDir(){return!!_dir}
+  /* every write is verified by reading the file back; stale files from renamed titles are removed */
+  async function _dropStale(id,keep){
+    try{const pre=id+'_',drop=[];for await(const[n,h]of _dir.entries())if(h.kind==='file'&&n!==keep&&n.endsWith('.b64')&&n.startsWith(pre))drop.push(n);
+      for(const n of drop){try{await _dir.removeEntry(n);Reg.rm(n);log('Removed stale file '+n)}catch(e){log('Stale remove err: '+e.message)}}}catch(e){}
+  }
+  /* next free id = highest id in memory AND on the folder (other workstations may have added listings) */
+  async function freshId(){
+    let mx=0;ITEMS.forEach(i=>{if(Number.isInteger(i.id)&&i.id>mx)mx=i.id});
+    if(_dir){try{for await(const[n]of _dir.entries()){const m=/^(\d+)_/.exec(n);if(m&&+m[1]>mx)mx=+m[1]}}catch(e){}}
+    return mx+1;
+  }
+  /* is there a newer version of this listing on disk than the one we loaded? (returns it, or {deleted:true}, or null) */
+  async function conflict(id,base){
+    if(!_dir||id==null||base==null)return null;
+    try{const pre=id+'_';let best=null,bv=base;
+      for await(const[n,h]of _dir.entries()){
+        if(h.kind!=='file'||!n.startsWith(pre)||!n.endsWith('.b64'))continue;
+        const d=Pkt.dec(await(await h.getFile()).text());if(!d)continue;
+        if(d.status==='deleted'){if((d.ts||0)>bv){best={deleted:true,ts:d.ts||0};bv=d.ts||0}continue}
+        const it=d.item;if(it&&ver(it)>bv){best=it;bv=ver(best)}
+      }
+      return best;
+    }catch(e){return null}
+  }
+  function conflictMsg(id,c){
+    if(c&&c.deleted){ITEMS=ITEMS.filter(x=>x.id!==id)}
+    else if(c){const x=ITEMS.findIndex(z=>z.id===id);if(x>-1)ITEMS[x]=c;else ITEMS.push(c);saveItems()}
+    try{chrome();Browse.render()}catch(e){}
+    Toast('⚠ This listing was changed on another workstation — your change was NOT saved. Cancel, reopen it and redo the change.',7000);
+    log('CONFLICT on #'+id+': a newer version is on disk — write blocked');
+  }
+  async function write(item,status){
+    if(!FS.ok())return null;
+    if(!item||!item.title)return null;
+    if(!_dir||!await ready()){Toast('B64 folder not linked — link it first');log('Write blocked: folder not linked');return null}
+    const fn=Pkt.fn(item.title,item.id);const had=Reg.list().includes(fn);Reg.add(fn);
+    const ts=Date.now();
+    const payload={v:9,ts,store:CFG.NAME,status:status||'active',id:item.id||null,item:item||null,files:Reg.list()};
+    const encoded=Pkt.enc(payload);const kb=Math.round(encoded.length/1024);
+    if(kb>8192)log('WARN: '+fn+' is '+kb+'KB');
+    try{
+      const fh=await _dir.getFileHandle(fn,{create:true});const w=await fh.createWritable();await w.write(encoded);await w.close();
+      const back=Pkt.dec(await(await fh.getFile()).text());
+      if(!back||back.ts!==ts||(back.id||null)!==(item.id||null))throw new Error('read-back check failed');
+      log('Written: '+fn+' ('+kb+'KB) — verified');
+    }catch(e){if(!had)Reg.rm(fn);log('Write err: '+e.message);Toast('Write failed: '+e.message);return null}
+    if(item.id!=null)await _dropStale(item.id,fn);
+    return fn;
+  }
+  /* ── latest.b64: manifest built from memory, merged with whatever other workstations wrote ── */
+  const _mf=i=>{const o=Object.assign({},i);delete o.images;delete o.thumbs;return o};
+  async function manifestObj(){
+    const mem={};ITEMS.forEach(i=>{mem[i.id]=_mf(i)});
+    const names=[];
+    if(_dir){try{for await(const[n,h]of _dir.entries())if(h.kind==='file'&&n.endsWith('.b64')&&n!=='latest.b64'&&n!=='packages.b64')names.push(n)}catch(e){}}
+    names.sort();names.forEach(n=>Reg.add(n));
+    return{manifest:{v:9,ts:Date.now(),store:CFG.NAME,paypal:CFG.PP_EMAIL||'',biz:Biz.manifestData(),files:names.length?names:Reg.list(),items:mem}};
+  }
+  async function _writeManifest(){
+    const obj=await manifestObj();const encoded=Pkt.enc(obj);
+    const fh=await _dir.getFileHandle('latest.b64',{create:true});const w=await fh.createWritable();await w.write(encoded);await w.close();
+    return Math.round(encoded.length/1024);
+  }
+  /* on-demand manifest write (Business Info save) — returns KB written, 0 when not possible */
+  async function genManifest(){
+    if(!_dir||!FS.ok())return 0;
+    if(!await ready()){Toast('B64 folder not linked — link it first');return 0}
+    try{return await _writeManifest()}catch(e){log('Manifest err: '+e.message);Toast('Manifest write failed: '+e.message);return 0}
+  }
+  /* silently rewrite latest.b64 whenever a change is made (no toast, just log) */
+  async function autoSave(){
+    if(!_dir||!FS.ok())return;
+    try{const kb=await _writeManifest();log('latest.b64 autosaved ('+kb+'KB)')}catch(e){log('autoSave err: '+e.message)}
+  }
+  return{restore,ready,ensure,pick,scan,write,freshId,conflict,conflictMsg,autoSave,genManifest,dir:()=>_dir,_hasDir,ver,foot,stats:()=>{try{chrome()}catch(e){}}};
+})();
+/* ── REFRESH GUARD — configs §20 modal.refreshguard: reload wipes the folder link, so ask for the PIN ── */
+const RefreshGuard={
+  _on:false,
+  arm(){this._on=true},
+  disarm(){this._on=false},
+  sync(){this._on=!!(Vnd.on()&&DB._hasDir())},
+  async confirm(){
+    if(!await Vnd.checkPw($('rgpin').value)){Toast('Wrong PIN');$('rgpin').value='';$('rgpin').focus();return}
+    this._on=false;$('rgmod').classList.remove('onm');location.reload();
+  },
+  cancel(){$('rgmod').classList.remove('onm');$('rgpin').value=''}
+};
+document.addEventListener('keydown',e=>{
+  if(!RefreshGuard._on)return;
+  if((e.ctrlKey&&e.key==='r')||(e.ctrlKey&&e.key==='R')||e.key==='F5'){
+    e.preventDefault();$('rgmod').classList.add('onm');setTimeout(()=>{if($('rgmod').classList.contains('onm'))$('rgpin').focus()},40);
+  }
+});
+window.addEventListener('beforeunload',e=>{
+  if(!RefreshGuard._on)return;
+  const m='DATABASE will be DISCONNECTED if page is refreshed!';
+  e.preventDefault();e.returnValue=m;return m;
+});
+
+/* ═══ GLOBAL KEYS + OUTSIDE CLICK (beh.keys.esc — close menu → modals → detail) ═══ */
+document.addEventListener('click',e=>{if(!e.target.closest('.sqwrap'))SortMenu.close()});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  if($('sortpop').classList.contains('on')){SortMenu.close();return}
+  if(Basket.isOpen()){Basket.close();return}
+  for(const m of['emod','vmod','bimod','rgmod'])if($(m).classList.contains('onm')){$(m).classList.remove('onm');return}
+  if($('view-detail').classList.contains('on'))Det.close();
+});
+window.addEventListener('popstate',e=>{
+  if(Basket.popGuard())return; /* Back while the basket is open → close the basket only */
+  const id=e.state&&e.state.det;
+  if(id&&get(id)){Det.open(id,false);return} /* back/forward onto a listing — show it, no new entry */
+  if($('view-detail').classList.contains('on'))Det._closeView();
+  Browse.restoreScroll(); /* land on the exact search + scroll remembered for the browse view */
+});
+
+/* ═══ INIT ═══ */
+(async function init(){
+  Biz.apply(); /* paints header title · back-button label · OG/JSON-LD from business info */
+  SortMenu.sync();
+  Vnd.apply();
+  Browse.init();
+  /* catalog load — IndexedDB first (photos fit), legacy localStorage migrated once, seed last */
+  ITEMS=await Store.loadItems();
+  /* STATIC DEPLOY (configs §21 data.static.*): on http(s) the catalog is fetched from the
+     /src folder BEFORE the first render — manifest metadata now, photos lazily per item.
+     file:// runs skip this and keep using the linked B64 folder (DB.scan). */
+  if(Static.on())await Static.loadAll();
+  if(FS.ok()){try{await DB.restore(true)}catch(e){}} /* folder still permitted → real data replaces placeholders before first paint */
+  /* browse-state memory — search · sort · cards loaded · scroll (empty searches included);
+     a ?item= deeplink opens ON TOP of the restored browse view instead of replacing it */
+  const deep=(()=>{try{return +new URLSearchParams(location.search).get('item')||0}catch(e){return 0}})();
+  if(!Browse.restoreSaved())Browse.render();
+  Basket.render();
+  $('f-img').addEventListener('change',e=>Ed.pick(e.target.files&&e.target.files[0]));
+  /* silent B64 relink at startup — only if the browser still holds the permission (no prompt);
+     otherwise the B64 button stays red and relinks on click (storefront.txt init: DB.restore(true)) */
+  RefreshGuard.sync();liveBadge();
+  try{
+    if(deep&&get(deep)){history.replaceState({det:deep},'','?item='+deep);Det.open(deep,false)}
+    else history.replaceState({browse:1},'',''+location.pathname);
+  }catch(e){}
+})();
+</script>
+
+
+</body>
+</html>
